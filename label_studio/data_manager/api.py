@@ -374,6 +374,18 @@ class TaskListAPI(generics.ListCreateAPIView):
         prepare_params = get_prepare_params(request, project)
         queryset = self.get_task_queryset(request, prepare_params)
 
+        if project.task_distribution == Project.MANUAL_DISTRIBUTION:
+            from projects.models import ProjectMember
+
+            is_project_annotator = ProjectMember.objects.filter(
+                project=project,
+                user=request.user,
+                enabled=True,
+                role=ProjectMember.ProjectRoleChoices.ANNOTATOR,
+            ).exists()
+            if is_project_annotator:
+                queryset = queryset.filter(assignees=request.user)
+
         # paginated tasks
         page = self.paginate_queryset(queryset)
 

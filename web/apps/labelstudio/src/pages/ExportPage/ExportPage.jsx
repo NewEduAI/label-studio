@@ -56,6 +56,9 @@ export const ExportPage = () => {
   const [currentFormat, setCurrentFormat] = useState("JSON");
   const [projectTaskNumber, setProjectTaskNumber] = useState(null);
   const [exportIssue, setExportIssue] = useState(null);
+  const [langfuseExporting, setLangfuseExporting] = useState(false);
+  const [langfuseResult, setLangfuseResult] = useState(null);
+  const [hasLangfuse, setHasLangfuse] = useState(false);
 
   /** @type {import('react').RefObject<Form>} */
   const form = useRef();
@@ -147,11 +150,39 @@ export const ExportPage = () => {
           setProjectTaskNumber(project?.task_number ?? null);
         });
 
+      api
+        .callApi("exportLangfuseCheck", {
+          params: { pk: pageParams.id },
+          errorFilter: () => true,
+        })
+        .then((res) => {
+          if (cancelled) return;
+          if (res?.available) {
+            setHasLangfuse(true);
+          }
+        })
+        .catch(() => {});
+
       return () => {
         cancelled = true;
       };
     }
   }, [pageParams.id]);
+
+  const proceedLangfuseExport = async () => {
+    setLangfuseResult(null);
+    setLangfuseExporting(true);
+    try {
+      const res = await api.callApi("exportLangfuse", {
+        params: { pk: pageParams.id },
+      });
+      setLangfuseResult(res);
+    } catch (e) {
+      setLangfuseResult({ error: String(e) });
+    } finally {
+      setLangfuseExporting(false);
+    }
+  };
 
   return (
     <Modal
@@ -181,6 +212,37 @@ export const ExportPage = () => {
         <Form ref={form}>
           <Input type="hidden" name="exportType" value={currentFormat} />
         </Form>
+
+        {hasLangfuse && (
+          <div className={cn("export-page").elem("langfuse-section").toClassName()}>
+            <div className={cn("export-page").elem("langfuse-title").toClassName()}>Write Back to Langfuse</div>
+            <div className={cn("export-page").elem("langfuse-desc").toClassName()}>
+              Export annotation results as scores to the original Langfuse traces.
+              Only tasks imported from Langfuse (with trace_id) will be exported.
+            </div>
+            {langfuseResult && (
+              <div className={cn("export-page").elem("langfuse-result").mod({ error: !!langfuseResult.error }).toClassName()}>
+                {langfuseResult.error ? (
+                  <span>Export failed: {langfuseResult.error}</span>
+                ) : (
+                  <span>
+                    Exported {langfuseResult.exported} score(s), skipped {langfuseResult.skipped} task(s).
+                    {langfuseResult.queue_completed > 0 && ` ${langfuseResult.queue_completed} queue item(s) completed.`}
+                    {langfuseResult.errors?.length > 0 && ` ${langfuseResult.errors.length} error(s).`}
+                  </span>
+                )}
+              </div>
+            )}
+            <Button
+              look="outlined"
+              onClick={proceedLangfuseExport}
+              waiting={langfuseExporting}
+              aria-label="Write back to Langfuse"
+            >
+              Write to Langfuse
+            </Button>
+          </div>
+        )}
 
         <div className={cn("export-page").elem("footer").toClassName()}>
           {downloadingMessage && (

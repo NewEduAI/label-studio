@@ -81,6 +81,12 @@ class Task(TaskMixin, FsmHistoryStateModel):
         null=True,
         help_text='Project ID for this task',
     )
+    assignees = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='assigned_tasks',
+        blank=True,
+        help_text='Users manually assigned to this task',
+    )
     created_at = models.DateTimeField(_('created at'), auto_now_add=True, help_text='Time a task was created')
     updated_at = models.DateTimeField(_('updated at'), auto_now=True, help_text='Last time a task was updated')
     updated_by = models.ForeignKey(

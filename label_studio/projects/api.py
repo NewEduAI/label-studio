@@ -189,7 +189,22 @@ class ProjectListAPI(generics.ListCreateAPIView):
         ):
             projects = projects.with_state()
 
-        return projects.prefetch_related('members', 'created_by')
+        projects = projects.prefetch_related('members', 'created_by')
+
+        from organizations.models import OrganizationMember
+
+        try:
+            om = OrganizationMember.objects.get(
+                user=self.request.user,
+                organization=self.request.user.active_organization,
+                deleted_at__isnull=True,
+            )
+            if om.role == OrganizationMember.RoleChoices.ANNOTATOR:
+                projects = projects.filter(members__user=self.request.user, members__enabled=True).distinct()
+        except OrganizationMember.DoesNotExist:
+            pass
+
+        return projects
 
     def get_serializer_context(self):
         context = super(ProjectListAPI, self).get_serializer_context()
@@ -446,8 +461,14 @@ class ProjectNextTaskAPI(generics.RetrieveAPIView):
         project = self.get_object()
         dm_queue = filters_ordering_selected_items_exist(request.data)
         prepared_tasks = get_prepared_queryset(request, project)
+        assigned_flag = None
+        if project.task_distribution == Project.MANUAL_DISTRIBUTION:
+            prepared_tasks = prepared_tasks.filter(assignees=request.user)
+            assigned_flag = True
 
-        next_task, queue_info = get_next_task(request.user, prepared_tasks, project, dm_queue)
+        next_task, queue_info = get_next_task(
+            request.user, prepared_tasks, project, dm_queue, assigned_flag
+        )
 
         if next_task is None:
             raise NotFound(f'There are no tasks for {request.user}')

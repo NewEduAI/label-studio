@@ -7,6 +7,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from .azure_blob.api import AzureBlobExportStorageListAPI, AzureBlobImportStorageListAPI
 from .gcs.api import GCSExportStorageListAPI, GCSImportStorageListAPI
+from .langfuse.api import LangfuseImportStorageListAPI
 from .redis.api import RedisExportStorageListAPI, RedisImportStorageListAPI
 from .s3.api import S3ExportStorageListAPI, S3ImportStorageListAPI
 
@@ -89,6 +90,12 @@ def get_storage_list():
             'title': 'Redis',
             'import_list_api': RedisImportStorageListAPI,
             'export_list_api': RedisExportStorageListAPI,
+        },
+        {
+            'name': 'langfuse',
+            'title': 'Langfuse',
+            'import_list_api': LangfuseImportStorageListAPI,
+            'export_list_api': None,
         },
     ]
 

@@ -72,11 +72,32 @@ class ProjectMixin:
         )
 
     def has_permission(self, user):
-        """
-        Dummy stub for has_permission
+        """Check if user has access to this project.
+
+        Access is granted if:
+        - User is an org-level admin/owner/manager (can access all projects)
+        - User is a project member with an active membership
         """
         user.project = self  # link for activity log
-        return True
+
+        from organizations.models import OrganizationMember
+
+        try:
+            om = OrganizationMember.objects.get(
+                user=user,
+                organization_id=self.organization_id,
+                deleted_at__isnull=True,
+            )
+            if om.is_manager:
+                return True
+        except OrganizationMember.DoesNotExist:
+            return False
+
+        from projects.models import ProjectMember
+
+        return ProjectMember.objects.filter(
+            user=user, project=self, enabled=True,
+        ).exists()
 
     def _can_use_overlap(self):
         """

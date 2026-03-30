@@ -32,4 +32,23 @@ def settings(request):
     if hasattr(request, 'user'):
         feature_flags = all_flags(request.user)
 
-    return {'settings': django_settings, 'versions': versions, 'feature_flags': feature_flags}
+    organization_role = None
+    if hasattr(request, 'user') and request.user.is_authenticated:
+        from organizations.models import OrganizationMember
+
+        try:
+            om = OrganizationMember.objects.get(
+                user=request.user,
+                organization_id=request.user.active_organization_id,
+                deleted_at__isnull=True,
+            )
+            organization_role = om.role
+        except OrganizationMember.DoesNotExist:
+            pass
+
+    return {
+        'settings': django_settings,
+        'versions': versions,
+        'feature_flags': feature_flags,
+        'organization_role': organization_role,
+    }

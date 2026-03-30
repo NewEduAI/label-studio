@@ -9,6 +9,7 @@ app_name = 'data_export'
 
 _api_urlpatterns = [
     # export api
+    path('<int:pk>/export/langfuse', api.LangfuseExportAPI.as_view(), name='project-export-langfuse'),
     path('<int:pk>/export', api.ExportAPI.as_view(), name='project-export'),
     path('<int:pk>/export/formats', api.ExportFormatsListAPI.as_view(), name='project-export-formats'),
     # Previously exported results

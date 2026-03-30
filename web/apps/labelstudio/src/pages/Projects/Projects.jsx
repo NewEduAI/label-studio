@@ -9,7 +9,9 @@ import { useContextProps } from "../../providers/RoutesProvider";
 import { cn } from "../../utils/bem";
 import { CreateProject } from "../CreateProject/CreateProject";
 import { DataManagerPage } from "../DataManager/DataManager";
+import { DashboardPage } from "../Dashboard/DashboardPage";
 import { SettingsPage } from "../Settings";
+import { ProjectTabBar } from "../../components/ProjectTabBar/ProjectTabBar";
 import { EmptyProjectsList, ProjectsList } from "./ProjectsList";
 import { useAbortController, useUpdatePageTitle } from "@humansignal/core";
 import "./Projects.prefix.css";
@@ -149,12 +151,16 @@ ProjectsPage.routes = ({ store }) => [
     title: () => store.project?.title,
     path: "/:id(\\d+)",
     exact: true,
+    layout: ProjectTabBar,
     component: () => {
       const params = useRouterParams();
+      const orgRole = window.APP_SETTINGS?.user?.organizationRole;
+      const defaultPage = orgRole === "annotator" ? "data" : "dashboard";
 
-      return <Redirect to={`/projects/${params.id}/data`} />;
+      return <Redirect to={`/projects/${params.id}/${defaultPage}`} />;
     },
     pages: {
+      DashboardPage,
       DataManagerPage,
       SettingsPage,
     },

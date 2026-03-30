@@ -81,5 +81,62 @@ def make_perm(name, pred, overwrite=False):
     rules.add_perm(name, pred)
 
 
+def _is_org_admin(user):
+    """Check if user is admin+ in their active organization."""
+    if not user.is_authenticated:
+        return False
+    from organizations.models import OrganizationMember
+
+    try:
+        om = OrganizationMember.objects.get(
+            user=user, organization_id=user.active_organization_id, deleted_at__isnull=True,
+        )
+        return om.is_admin
+    except OrganizationMember.DoesNotExist:
+        return False
+
+
+def _is_org_manager(user):
+    """Check if user is manager+ in their active organization."""
+    if not user.is_authenticated:
+        return False
+    from organizations.models import OrganizationMember
+
+    try:
+        om = OrganizationMember.objects.get(
+            user=user, organization_id=user.active_organization_id, deleted_at__isnull=True,
+        )
+        return om.is_manager
+    except OrganizationMember.DoesNotExist:
+        return False
+
+
+is_org_admin = rules.predicate(_is_org_admin)
+is_org_manager = rules.predicate(_is_org_manager)
+
+_admin_only_perms = {
+    'organizations.change', 'organizations.delete', 'organizations.invite',
+    'projects.delete', 'projects.reset_cache',
+    'views.reset',
+}
+
+_manager_perms = {
+    'projects.create', 'projects.change',
+    'tasks.create', 'tasks.change', 'tasks.delete',
+    'storages.change', 'storages.sync',
+    'views.create', 'views.change', 'views.delete',
+    'models.create', 'models.change', 'models.delete',
+    'model_provider_connection.create', 'model_provider_connection.change',
+    'model_provider_connection.delete',
+    'webhooks.change',
+    'labels.create', 'labels.change', 'labels.delete',
+    'predictions.any',
+}
+
 for _, permission_name in all_permissions:
-    make_perm(permission_name, rules.is_authenticated)
+    if permission_name in _admin_only_perms:
+        make_perm(permission_name, is_org_admin)
+    elif permission_name in _manager_perms:
+        make_perm(permission_name, is_org_manager)
+    else:
+        make_perm(permission_name, rules.is_authenticated)

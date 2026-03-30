@@ -267,15 +267,16 @@ class OrganizationMemberListAPI(generics.ListAPIView):
         },
     ),
 )
-class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroyAPIView):
+class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveUpdateDestroyAPIView):
     permission_required = ViewClassPermission(
         GET=all_permissions.organizations_view,
+        PATCH=all_permissions.organizations_change,
         DELETE=all_permissions.organizations_change,
     )
     parent_queryset = Organization.objects.all()
     parser_classes = (JSONParser, FormParser, MultiPartParser)
     serializer_class = OrganizationMemberSerializer
-    http_method_names = ['delete', 'get']
+    http_method_names = ['delete', 'get', 'patch']
 
     @property
     def permission_classes(self):
@@ -300,6 +301,26 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
         serializer = self.get_serializer(member)
         return Response(serializer.data)
 
+    def patch(self, request, pk=None, user_pk=None):
+        org = self.parent_object
+        if org != request.user.active_organization:
+            raise PermissionDenied('You can update members only for your current active organization')
+
+        member = get_object_or_404(OrganizationMember, user__pk=user_pk, organization=org, deleted_at__isnull=True)
+
+        new_role = request.data.get('role')
+        if new_role and new_role in dict(OrganizationMember.RoleChoices.choices):
+            if member.is_owner and member.user_id != request.user.id:
+                return Response(
+                    {'detail': 'Cannot change the role of the organization owner'},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            member.role = new_role
+            member.save(update_fields=['role', 'updated_at'])
+
+        serializer = self.get_serializer(member)
+        return Response(serializer.data)
+
     def delete(self, request, pk=None, user_pk=None):
         org = self.parent_object
         if org != request.user.active_organization:
@@ -314,7 +335,7 @@ class OrganizationMemberDetailAPI(GetParentObjectMixin, generics.RetrieveDestroy
             return Response({'detail': 'User cannot soft delete self'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
 
         member.soft_delete()
-        return Response(status=204)  # 204 No Content is a common HTTP status for successful delete requests
+        return Response(status=204)
 
 
 @method_decorator(

@@ -26,6 +26,10 @@ from .redis.models import (  # noqa: F401
     RedisExportStorage,
     RedisExportStorageLink,
 )
+from .langfuse.models import (  # noqa: F401
+    LangfuseImportStorage,
+    LangfuseImportStorageLink,
+)
 
 from label_studio.core.utils.common import load_func
 
@@ -39,6 +43,7 @@ def get_storage_classes(storage_type='import'):
     storage_list = load_func(settings.GET_STORAGE_LIST)
     storage_classes = []
     for storage_decl in storage_list():
-        storage_api_class = storage_decl[f'{storage_type}_list_api']
-        storage_classes.append(storage_api_class.serializer_class.Meta.model)
+        storage_api_class = storage_decl.get(f'{storage_type}_list_api')
+        if storage_api_class is not None:
+            storage_classes.append(storage_api_class.serializer_class.Meta.model)
     return storage_classes

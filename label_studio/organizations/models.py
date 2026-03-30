@@ -18,11 +18,27 @@ OrganizationMemberMixin = load_func(settings.ORGANIZATION_MEMBER_MIXIN)
 class OrganizationMember(OrganizationMemberMixin, models.Model):
     """ """
 
+    class RoleChoices(models.TextChoices):
+        OWNER = 'owner', _('Owner')
+        ADMIN = 'admin', _('Admin')
+        MANAGER = 'manager', _('Manager')
+        ANNOTATOR = 'annotator', _('Annotator')
+
+    ADMIN_ROLES = {RoleChoices.OWNER, RoleChoices.ADMIN}
+    MANAGER_ROLES = {RoleChoices.OWNER, RoleChoices.ADMIN, RoleChoices.MANAGER}
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='om_through', help_text='User ID'
     )
     organization = models.ForeignKey(
         'organizations.Organization', on_delete=models.CASCADE, help_text='Organization ID'
+    )
+    role = models.CharField(
+        _('role'),
+        max_length=20,
+        choices=RoleChoices.choices,
+        default=RoleChoices.ANNOTATOR,
+        help_text='Role of the user in this organization',
     )
 
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
@@ -53,7 +69,15 @@ class OrganizationMember(OrganizationMemberMixin, models.Model):
 
     @cached_property
     def is_owner(self):
-        return self.user.id == self.organization.created_by.id
+        return self.role == self.RoleChoices.OWNER or self.user.id == self.organization.created_by.id
+
+    @cached_property
+    def is_admin(self):
+        return self.role in self.ADMIN_ROLES or self.is_owner
+
+    @cached_property
+    def is_manager(self):
+        return self.role in self.MANAGER_ROLES or self.is_owner
 
     class Meta:
         ordering = ['pk']
@@ -137,13 +161,20 @@ class Organization(OrganizationMixin, models.Model):
     def has_permission(self, user):
         return OrganizationMember.objects.filter(user=user, organization=self, deleted_at__isnull=True).exists()
 
-    def add_user(self, user):
+    def add_user(self, user, role=None):
         if self.users.filter(pk=user.pk).exists():
             logger.debug('User already exists in organization.')
             return
 
+        if role is None:
+            role = (
+                OrganizationMember.RoleChoices.OWNER
+                if self.created_by_id == user.pk
+                else OrganizationMember.RoleChoices.ANNOTATOR
+            )
+
         with transaction.atomic():
-            om = OrganizationMember(user=user, organization=self)
+            om = OrganizationMember(user=user, organization=self, role=role)
             om.save()
 
             return om

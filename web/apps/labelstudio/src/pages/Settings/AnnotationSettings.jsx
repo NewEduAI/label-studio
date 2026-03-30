@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { Button } from "@humansignal/ui";
 import { useUpdatePageTitle, createTitleFromSegments } from "@humansignal/core";
 import { Form, TextArea, Toggle } from "../../components/Form";
+import { RadioGroup } from "../../components/Form/Elements/RadioGroup/RadioGroup";
 import { MenubarContext } from "../../components/Menubar/Menubar";
 import { cn } from "../../utils/bem";
 
@@ -37,6 +38,32 @@ export const AnnotationSettings = () => {
             params={{ pk: project.id }}
             onSubmit={updateProject}
           >
+            <Form.Row columnCount={1}>
+              <div className={cn("settings-wrapper").elem("header").toClassName()}>Task Distribution</div>
+              <div className="settings-description">
+                <p style={{ marginBottom: "0" }}>Choose how tasks are distributed to annotators.</p>
+              </div>
+              <RadioGroup
+                label="Distribution Method"
+                labelProps={{ size: "large" }}
+                name="task_distribution"
+                simple
+              >
+                <RadioGroup.Button
+                  value="auto"
+                  label="Automatic"
+                  description="Annotators are automatically assigned to tasks when they enter the label stream."
+                />
+                <RadioGroup.Button
+                  value="manual"
+                  label="Manual"
+                  description="Tasks must be manually assigned to annotators from the Data Manager."
+                />
+              </RadioGroup>
+            </Form.Row>
+
+            <Divider height={32} />
+
             <Form.Row columnCount={1}>
               <div className={cn("settings-wrapper").elem("header").toClassName()}>Labeling Instructions</div>
               <div class="settings-description">

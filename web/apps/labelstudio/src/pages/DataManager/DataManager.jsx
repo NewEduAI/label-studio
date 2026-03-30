@@ -46,6 +46,7 @@ const initializeDataManager = async (root, props, params) => {
     labelStudio: {
       keymap: window.APP_SETTINGS.editor_keymap,
     },
+    role: window.APP_SETTINGS?.user?.organizationRole?.toUpperCase() ?? null,
     ...props,
     ...settings,
   };

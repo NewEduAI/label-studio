@@ -103,12 +103,26 @@ class BaseUserSerializerUpdate(BaseUserSerializer):
 
 class BaseWhoAmIUserSerializer(BaseUserSerializer):
     permissions = serializers.SerializerMethodField()
+    organization_role = serializers.SerializerMethodField()
 
     class Meta(BaseUserSerializer.Meta):
-        fields = BaseUserSerializer.Meta.fields + ('permissions',)
+        fields = BaseUserSerializer.Meta.fields + ('permissions', 'organization_role')
 
     def get_permissions(self, user) -> list[str]:
         return [perm for _, perm in all_permissions]
+
+    def get_organization_role(self, user) -> str | None:
+        from organizations.models import OrganizationMember
+
+        try:
+            om = OrganizationMember.objects.get(
+                user=user,
+                organization_id=user.active_organization_id,
+                deleted_at__isnull=True,
+            )
+            return om.role
+        except OrganizationMember.DoesNotExist:
+            return None
 
 
 class UserSimpleSerializer(BaseUserSerializer):

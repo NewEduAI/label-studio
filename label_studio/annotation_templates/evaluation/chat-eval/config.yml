@@ -1,0 +1,191 @@
+title: 对话评测
+type: community
+group: Evaluation
+order: 2
+image: /static/templates/generative-chatbot-assessment.png
+details: |
+  <h1>多轮对话结构化评分</h1>
+  <p>逐轮审查 AI 助手的对话，按角色（用户、助手、工具）分类展示，支持多维度评测打分。适用于 Langfuse 等平台导出的标准对话格式。</p>
+  <dl>
+    <dt>应用场景</dt>
+    <dd>聊天机器人评测、对话式 AI 质量保证、客服 AI 评估、RLHF 数据采集、AI 安全审查</dd>
+  </dl>
+config: |
+  <View>
+    <Style>
+      .chat-eval-root {
+        display: flex;
+        gap: var(--spacing-base);
+      }
+
+      .chat-eval-left {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-base);
+      }
+
+      .chat-eval-right {
+        flex: 1;
+        position: sticky;
+        top: var(--spacing-base);
+        align-self: flex-start;
+      }
+
+      .chat-eval-dialogue {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-base);
+        background-color: var(--color-neutral-background);
+      }
+
+      .chat-eval-context {
+        border: 1px solid var(--color-accent-canteloupe-subtle);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-tight);
+        background-color: var(--color-accent-canteloupe-subtlest);
+        margin-bottom: var(--spacing-base);
+      }
+
+      .chat-eval-context .lsf-richtext__container.lsf-htx-richtext {
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--color-accent-canteloupe-bold);
+      }
+
+      .chat-eval-meta {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-tight);
+        background-color: var(--color-neutral-surface);
+        font-size: 0.85em;
+      }
+
+      .chat-eval-scoring {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-base);
+        background-color: var(--color-neutral-background);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-tight);
+      }
+
+      .chat-eval-dim {
+        padding: var(--spacing-tight) 0;
+        border-bottom: 1px solid var(--color-neutral-border);
+      }
+
+      .chat-eval-dim:last-child {
+        border-bottom: none;
+      }
+
+      .chat-eval-dim-label {
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-neutral-content-subtle);
+        margin-bottom: var(--spacing-tighter);
+      }
+    </Style>
+
+    <View className="chat-eval-root">
+      <View className="chat-eval-left">
+        <View className="chat-eval-context">
+          <Header value="任务背景" size="5"/>
+          <Text name="context_display" value="$context"/>
+        </View>
+
+        <View className="chat-eval-dialogue">
+          <Header value="对话内容" size="4"/>
+          <Paragraphs name="dialogue" value="$turns" layout="dialogue" nameKey="role" textKey="content"/>
+        </View>
+
+        <View className="chat-eval-meta">
+          <Header value="元数据" size="5"/>
+          <Text name="metadata_display" value="$metadata_text"/>
+        </View>
+      </View>
+
+      <View className="chat-eval-right">
+        <View className="chat-eval-scoring">
+          <Header value="对话评测" size="3"/>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="综合判定" size="5"/></View>
+            <Choices name="chat_verdict" toName="dialogue" choice="single" showInline="true" required="true">
+              <Choice value="通过"/>
+              <Choice value="不通过"/>
+              <Choice value="部分通过"/>
+            </Choices>
+          </View>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="回复质量" size="5"/></View>
+            <Rating name="response_quality" toName="dialogue" maxRating="5"/>
+          </View>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="任务完成度" size="5"/></View>
+            <Choices name="task_completion" toName="dialogue" choice="single" showInline="true">
+              <Choice value="完全完成"/>
+              <Choice value="部分完成"/>
+              <Choice value="未完成"/>
+              <Choice value="不适用"/>
+            </Choices>
+          </View>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="工具使用" size="5"/></View>
+            <Choices name="tool_usage" toName="dialogue" choice="single" showInline="true">
+              <Choice value="正确"/>
+              <Choice value="部分正确"/>
+              <Choice value="错误"/>
+              <Choice value="不必要"/>
+              <Choice value="未使用工具"/>
+            </Choices>
+          </View>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="对话质量" size="5"/></View>
+            <Choices name="conversation_quality" toName="dialogue" choice="multiple" showInline="true">
+              <Choice value="连贯"/>
+              <Choice value="有帮助"/>
+              <Choice value="简洁"/>
+              <Choice value="偏离主题"/>
+              <Choice value="内容重复"/>
+              <Choice value="幻觉"/>
+              <Choice value="不完整"/>
+            </Choices>
+          </View>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="问题严重程度" size="5"/></View>
+            <Choices name="issue_severity" toName="dialogue" choice="single" showInline="true">
+              <Choice value="无问题"/>
+              <Choice value="轻微"/>
+              <Choice value="严重"/>
+              <Choice value="致命"/>
+            </Choices>
+          </View>
+
+          <View className="chat-eval-dim">
+            <View className="chat-eval-dim-label"><Header value="备注" size="5"/></View>
+            <TextArea name="chat_comments" toName="dialogue" rows="3" placeholder="针对具体轮次的说明、预期行为..."/>
+          </View>
+        </View>
+      </View>
+    </View>
+  </View>
+
+  <!-- { "data": {
+    "context": "用户正在与一个教育类 AI 助手交互，课程模块为「机器学习入门」。助手可以访问课程文档和工具。",
+    "turns": [
+      {"role": "user", "content": "监督学习和无监督学习有什么区别？"},
+      {"role": "assistant", "content": "好问题！监督学习使用有标签的训练数据——每个样本都有输入和对应的正确输出。模型学习为新输入预测输出，常见任务包括分类和回归。\n\n无监督学习使用无标签数据，模型自行发现隐藏的模式或结构，常见任务包括聚类、降维和异常检测。\n\n主要区别：\n- **数据**：监督学习需要标签，无监督学习不需要\n- **目标**：监督学习预测特定输出，无监督学习发现模式\n- **示例**：监督——垃圾邮件检测、图像分类；无监督——客户分群、主题建模"},
+      {"role": "user", "content": "能用课程数据给我举个例子吗？"},
+      {"role": "tool", "content": "[知识库检索] 查询：监督学习与无监督学习示例。在「ML 基础」文档中找到 3 个相关片段。"},
+      {"role": "assistant", "content": "根据课程资料，以下是 ML 基础模块中的一个具体例子：\n\n**监督学习**：课程使用一个房价数据集，每栋房屋都有特征（面积、卧室数、位置）和实际售价。线性回归模型学习为新房屋预测价格。\n\n**无监督学习**：同一数据集，但没有价格标签。聚类算法（K-means）根据特征相似度将房屋分为「豪华」、「郊区」、「紧凑」等类别。\n\n需要我讲解任一方法的代码示例吗？"}
+    ],
+    "metadata_text": "{\"task_type\": \"chat_interaction\", \"model\": \"gpt-4\", \"session_id\": \"chat_mod123_20250320\", \"module_id\": \"mod123\", \"total_turns\": 4, \"tool_calls\": 1}"
+  }} -->

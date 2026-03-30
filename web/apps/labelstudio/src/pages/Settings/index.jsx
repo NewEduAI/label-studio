@@ -7,6 +7,8 @@ import { LabelingSettings } from "./LabelingSettings";
 import { MachineLearningSettings } from "./MachineLearningSettings/MachineLearningSettings";
 import { PredictionsSettings } from "./PredictionsSettings/PredictionsSettings";
 import { StorageSettings } from "./StorageSettings/StorageSettings";
+import { IntegrationsSettings } from "./IntegrationsSettings";
+import { MembersSettings } from "./MembersSettings";
 import "./settings.prefix.css";
 
 export const MenuLayout = ({ children, ...routeProps }) => {
@@ -19,6 +21,8 @@ export const MenuLayout = ({ children, ...routeProps }) => {
         MachineLearningSettings,
         PredictionsSettings,
         StorageSettings,
+        MembersSettings,
+        IntegrationsSettings,
         WebhookPage,
         DangerZone,
       ].filter(Boolean)}
@@ -34,6 +38,8 @@ const pages = {
   MachineLearningSettings,
   PredictionsSettings,
   StorageSettings,
+  MembersSettings,
+  IntegrationsSettings,
   WebhookPage,
   DangerZone,
 };

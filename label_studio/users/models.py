@@ -15,7 +15,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.functional import cached_property
 from django.utils.translation import gettext_lazy as _
-from organizations.models import Organization
+from organizations.models import Organization, OrganizationMember
 from rest_framework.authtoken.models import Token
 from users.functions import hash_upload
 from users.functions.last_activity import get_user_last_activity, schedule_activity_sync, set_user_last_activity
@@ -177,7 +177,11 @@ class User(UserMixin, AbstractBaseUser, PermissionsMixin, UserLastActivityMixin)
                 return settings.HOSTNAME + self.avatar.url
 
     def is_organization_admin(self, org_pk):
-        return True
+        try:
+            om = OrganizationMember.objects.get(user=self, organization_id=org_pk, deleted_at__isnull=True)
+            return om.is_admin
+        except OrganizationMember.DoesNotExist:
+            return False
 
     def active_organization_annotations(self):
         return self.annotations.filter(project__organization=self.active_organization)

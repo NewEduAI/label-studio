@@ -1,0 +1,199 @@
+title: Trace 审查
+type: community
+group: Evaluation
+order: 3
+image: /static/templates/response-grading.png
+details: |
+  <h1>审查和标注 Langfuse Trace</h1>
+  <p>全面的 Trace 审查模板，用于评估 AI Agent 行为。按角色展示对话轮次，包含工具调用详情和时间元数据。支持多维度判定、问题分类、严重程度评级和自由文本反馈。适用于 Langfuse、LangSmith 等可观测性平台导出的标准化对话格式。</p>
+  <dl>
+    <dt>应用场景</dt>
+    <dd>AI Agent 评测、LLM Trace 审查、生产环境监控、质量保证、模型调试、故障分析、AI 安全审计</dd>
+  </dl>
+config: |
+  <View>
+    <Style>
+      .trace-root {
+        display: flex;
+        gap: var(--spacing-base);
+      }
+
+      .trace-main {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-base);
+      }
+
+      .trace-sidebar {
+        flex: 1;
+        position: sticky;
+        top: var(--spacing-base);
+        align-self: flex-start;
+      }
+
+      .trace-header {
+        display: flex;
+        gap: var(--spacing-tight);
+        align-items: center;
+        padding: var(--spacing-tight);
+        background-color: var(--color-neutral-surface);
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        font-size: 0.85em;
+      }
+
+      .trace-turns {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-base);
+        background-color: var(--color-neutral-background);
+      }
+
+      .trace-meta-section {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-tight);
+        background-color: var(--color-neutral-surface);
+        font-size: 0.85em;
+      }
+
+      .trace-scoring {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-base);
+        background-color: var(--color-neutral-background);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-tight);
+      }
+
+      .trace-dim {
+        padding: var(--spacing-tight) 0;
+        border-bottom: 1px solid var(--color-neutral-border);
+      }
+
+      .trace-dim:last-child {
+        border-bottom: none;
+      }
+
+      .trace-dim-label {
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-neutral-content-subtle);
+        margin-bottom: var(--spacing-tighter);
+      }
+    </Style>
+
+    <View className="trace-root">
+      <View className="trace-main">
+        <View className="trace-header">
+          <Header value="Trace 审查" size="4"/>
+          <Text name="trace_info" value="$trace_summary"/>
+        </View>
+
+        <View className="trace-turns">
+          <Header value="对话轮次" size="4"/>
+          <Paragraphs name="trace_turns" value="$turns" layout="dialogue" nameKey="role" textKey="content"/>
+        </View>
+
+        <View className="trace-meta-section">
+          <Header value="Trace 元数据" size="5"/>
+          <Text name="trace_metadata" value="$metadata_text"/>
+        </View>
+      </View>
+
+      <View className="trace-sidebar">
+        <View className="trace-scoring">
+          <Header value="Trace 标注" size="3"/>
+
+          <View className="trace-dim">
+            <View className="trace-dim-label"><Header value="综合判定" size="5"/></View>
+            <Choices name="trace_verdict" toName="trace_turns" choice="single" showInline="true" required="true">
+              <Choice value="通过"/>
+              <Choice value="不通过"/>
+              <Choice value="部分通过"/>
+            </Choices>
+          </View>
+
+          <View className="trace-dim">
+            <View className="trace-dim-label"><Header value="质量评分" size="5"/></View>
+            <Rating name="trace_quality" toName="trace_turns" maxRating="5"/>
+          </View>
+
+          <View className="trace-dim">
+            <View className="trace-dim-label"><Header value="问题分类" size="5"/></View>
+            <Taxonomy name="failure_modes" toName="trace_turns">
+              <Choice value="准确性">
+                <Choice value="幻觉"/>
+                <Choice value="事实错误"/>
+                <Choice value="信息过时"/>
+                <Choice value="错误引用"/>
+              </Choice>
+              <Choice value="工具与检索">
+                <Choice value="选错工具"/>
+                <Choice value="工具参数错误"/>
+                <Choice value="缺少工具调用"/>
+                <Choice value="检索失败"/>
+                <Choice value="忽略工具结果"/>
+              </Choice>
+              <Choice value="推理">
+                <Choice value="逻辑错误"/>
+                <Choice value="遗漏上下文"/>
+                <Choice value="过度复杂化"/>
+                <Choice value="过早下结论"/>
+              </Choice>
+              <Choice value="回复质量">
+                <Choice value="过于冗长"/>
+                <Choice value="过于简短"/>
+                <Choice value="格式不佳"/>
+                <Choice value="偏离主题"/>
+                <Choice value="内容重复"/>
+              </Choice>
+              <Choice value="安全性">
+                <Choice value="有害内容"/>
+                <Choice value="隐私泄露"/>
+                <Choice value="偏见"/>
+                <Choice value="语气不当"/>
+              </Choice>
+            </Taxonomy>
+          </View>
+
+          <View className="trace-dim">
+            <View className="trace-dim-label"><Header value="严重程度" size="5"/></View>
+            <Choices name="severity" toName="trace_turns" choice="single" showInline="true">
+              <Choice value="无问题"/>
+              <Choice value="建议"/>
+              <Choice value="轻微"/>
+              <Choice value="严重"/>
+              <Choice value="致命"/>
+            </Choices>
+          </View>
+
+          <View className="trace-dim">
+            <View className="trace-dim-label"><Header value="预期行为" size="5"/></View>
+            <TextArea name="expected_behavior" toName="trace_turns" rows="2" placeholder="Agent 应该怎么做？"/>
+          </View>
+
+          <View className="trace-dim">
+            <View className="trace-dim-label"><Header value="备注" size="5"/></View>
+            <TextArea name="trace_comments" toName="trace_turns" rows="3" placeholder="补充说明、具体轮次问题..."/>
+          </View>
+        </View>
+      </View>
+    </View>
+  </View>
+
+  <!-- { "data": {
+    "trace_summary": "Trace: abc123 | 会话: chat_mod456_20250320 | 来源: langfuse | 轮次: 6",
+    "turns": [
+      {"role": "user", "content": "我 37 天前买了一个有制造缺陷的产品，还买了延保。我有哪些选择？"},
+      {"role": "assistant", "content": "让我来查看一下您的情况——37 天前购买的有制造缺陷的产品，且有延保服务。"},
+      {"role": "tool", "content": "[search_knowledge_base] 查询：退款政策 制造缺陷 延保\n结果：退款政策——30 天内全额退款。30 天后仅限店铺积分。损坏商品：任何时候提供照片证据可全额退款。延保：制造缺陷 2 年保修。"},
+      {"role": "assistant", "content": "根据我们的政策，以下是您的所有选择：\n\n1. **店铺积分退款** —— 由于已超过 30 天窗口期，您可以获得全额购买金额的店铺积分。\n\n2. **损坏商品全额退款** —— 制造缺陷属于损坏。如果您提供缺陷的照片证据，无论是否超过 30 天都可以获得**全额退款**。\n\n3. **延保理赔** —— 您的延保覆盖制造缺陷 2 年。您可以提交保修理赔进行免费维修或更换。\n\n**我的建议**：先选择方案 2（提供照片证据全额退款），这给您最大的灵活性。\n\n需要我帮您处理其中任何选项吗？"},
+      {"role": "user", "content": "这个商品价格是 289 美元。我能用店铺积分购买新的延保，同时保留原来的保修理赔吗？"},
+      {"role": "assistant", "content": "这是个好问题。让我说明一下这些选项之间的关系：\n\n**店铺积分 + 新延保**：可以，如果您选择店铺积分路线（289 美元），可以用积分购买包含新延保（29.99 美元）的新商品。但店铺积分是针对*退回*的商品发放的。\n\n**保留原保修理赔**：不行——延保绑定的是特定商品。如果您退回商品（无论是换积分还是退款），保修理赔将因商品不在您手中而失效。\n\n**最佳方案**：\n- 使用**损坏商品全额退款**（方案 2）拿回 289 美元\n- 用退款购买替换商品\n- 添加新延保 29.99 美元\n- 总自付：29.99 美元（新延保费用）\n\n这样您就能得到一个无缺陷的商品和全新的保修。需要我帮您启动退款流程吗？"}
+    ],
+    "metadata_text": "{\"trace_id\": \"abc123\", \"session_id\": \"chat_mod456_20250320\", \"source\": \"langfuse\", \"name\": \"customer_support_agent\", \"tags\": [\"chat\", \"support\"], \"model\": \"claude-sonnet-4-5-20250929\", \"total_duration_ms\": 4520, \"total_tokens\": {\"input\": 850, \"output\": 620}}"
+  }} -->

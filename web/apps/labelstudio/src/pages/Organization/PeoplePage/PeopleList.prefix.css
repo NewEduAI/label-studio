@@ -52,6 +52,10 @@
       width: 200px;
     }
 
+    &.role {
+      width: 130px;
+    }
+
     &.last-activity {
       width: 160px;
     }
@@ -66,6 +70,45 @@
   &__column {
     font-weight: 500;
     background: none;
+  }
+
+  &__role-badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.5;
+
+    &_owner {
+      background: #F3E8FF;
+      color: #7C3AED;
+    }
+
+    &_admin {
+      background: #DBEAFE;
+      color: #2563EB;
+    }
+
+    &_manager {
+      background: #D1FAE5;
+      color: #059669;
+    }
+
+    &_annotator {
+      background: var(--color-neutral-emphasis-subtle);
+      color: var(--color-neutral-content-subtler);
+    }
+
+    &_editable {
+      cursor: pointer;
+      transition: opacity 0.15s;
+
+      &:hover {
+        opacity: 0.75;
+        box-shadow: 0 0 0 2px var(--color-neutral-border);
+      }
+    }
   }
 
   &__user {

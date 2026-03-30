@@ -14,6 +14,7 @@ import { Button, CodeBlock, SimpleCard, Spinner, Tooltip, Typography, Badge } fr
 import truncate from "truncate-middle";
 import samples from "./samples.json";
 import { importFiles } from "./utils";
+import { LangfuseImportForm } from "./LangfuseImportForm";
 
 const importClass = cn("upload_page");
 const dropzoneClass = cn("dropzone");
@@ -156,6 +157,7 @@ export const ImportPage = ({
   const [error, setError] = useState();
   const [newlyUploadedFiles, setNewlyUploadedFiles] = useState(new Set());
   const prevUploadedRef = useRef(new Set());
+  const [showLangfuse, setShowLangfuse] = useState(false);
   const api = useAPI();
   const projectConfigured = project?.label_config !== "<View></View>";
   const sampleConfig = useAtomValue(sampleDatasetAtom);
@@ -397,6 +399,16 @@ export const ImportPage = ({
         >
           Upload {files.uploaded.length ? "More " : ""}Files
         </Button>
+        <span>or</span>
+        <Button
+          variant="primary"
+          look={showLangfuse ? "filled" : "outlined"}
+          type="button"
+          onClick={() => setShowLangfuse(!showLangfuse)}
+          aria-label="Import from Langfuse"
+        >
+          {showLangfuse ? "← Back to Upload" : "Import from Langfuse"}
+        </Button>
         {ff.isActive(ff.FF_SAMPLE_DATASETS) && (
           <SampleDatasetSelect samples={samples} sample={sample} onSampleApplied={onSampleDatasetSelect} />
         )}
@@ -421,6 +433,15 @@ export const ImportPage = ({
 
       <ErrorMessage error={error} />
 
+      {showLangfuse ? (
+        <main>
+          <LangfuseImportForm
+            project={project}
+            onComplete={() => setShowLangfuse(false)}
+            onCancel={() => setShowLangfuse(false)}
+          />
+        </main>
+      ) : (
       <main>
         <Upload sendFiles={sendFiles} project={project}>
           <div
@@ -666,6 +687,7 @@ export const ImportPage = ({
           </div>
         </Upload>
       </main>
+      )}
     </div>
   );
 };

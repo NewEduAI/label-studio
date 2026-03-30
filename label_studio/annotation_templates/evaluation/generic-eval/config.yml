@@ -1,0 +1,166 @@
+title: 通用评测
+type: community
+group: Evaluation
+order: 1
+image: /static/templates/response-grading.png
+details: |
+  <h1>AI 模型输出多维度评分</h1>
+  <p>灵活的评测模板，左右并排展示模型的输入与输出，支持多维度打分。适用于内容生成、RAG、代码生成、翻译等各类任务。</p>
+  <dl>
+    <dt>应用场景</dt>
+    <dd>LLM 评测、模型基准测试、内容质量评估、RAG 评测、代码审查、翻译质量、RLHF 数据采集</dd>
+  </dl>
+config: |
+  <View>
+    <Style>
+      .eval-root {
+        display: flex;
+        gap: var(--spacing-base);
+      }
+
+      .eval-content {
+        flex: 2;
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-base);
+      }
+
+      .eval-scoring {
+        flex: 1;
+        position: sticky;
+        top: var(--spacing-base);
+        align-self: flex-start;
+      }
+
+      .eval-section {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-base);
+        background-color: var(--color-neutral-background);
+      }
+
+      .eval-section-input {
+        border-left: 3px solid var(--color-accent-blueberry-base);
+      }
+
+      .eval-section-output {
+        border-left: 3px solid var(--color-accent-kale-base);
+      }
+
+      .eval-section-meta {
+        border-left: 3px solid var(--color-neutral-border);
+        background-color: var(--color-neutral-surface);
+        font-size: 0.9em;
+      }
+
+      .eval-scoring-panel {
+        border: 1px solid var(--color-neutral-border);
+        border-radius: var(--corner-radius-medium);
+        padding: var(--spacing-base);
+        background-color: var(--color-neutral-background);
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-tight);
+      }
+
+      .eval-dimension {
+        padding: var(--spacing-tight) 0;
+        border-bottom: 1px solid var(--color-neutral-border);
+      }
+
+      .eval-dimension:last-child {
+        border-bottom: none;
+      }
+
+      .eval-label {
+        font-size: 0.85em;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--color-neutral-content-subtle);
+        margin-bottom: var(--spacing-tighter);
+      }
+    </Style>
+
+    <View className="eval-root">
+      <View className="eval-content">
+        <View className="eval-section eval-section-input">
+          <Header value="输入" size="4"/>
+          <Text name="input_display" value="$input"/>
+        </View>
+
+        <View className="eval-section eval-section-output">
+          <Header value="输出" size="4"/>
+          <Text name="output_display" value="$output"/>
+        </View>
+
+        <View className="eval-section eval-section-meta" visibleWhen="region-selected" whenTagName="metadata_display">
+          <Header value="元数据" size="5"/>
+          <Text name="metadata_display" value="$metadata_text"/>
+        </View>
+      </View>
+
+      <View className="eval-scoring">
+        <View className="eval-scoring-panel">
+          <Header value="评测" size="3"/>
+
+          <View className="eval-dimension">
+            <View className="eval-label"><Header value="综合判定" size="5"/></View>
+            <Choices name="verdict" toName="output_display" choice="single" showInline="true" required="true">
+              <Choice value="通过"/>
+              <Choice value="不通过"/>
+              <Choice value="待定"/>
+            </Choices>
+          </View>
+
+          <View className="eval-dimension">
+            <View className="eval-label"><Header value="质量评分" size="5"/></View>
+            <Rating name="quality_score" toName="output_display" maxRating="5"/>
+          </View>
+
+          <View className="eval-dimension">
+            <View className="eval-label"><Header value="准确性" size="5"/></View>
+            <Choices name="accuracy" toName="output_display" choice="single" showInline="true">
+              <Choice value="准确"/>
+              <Choice value="部分准确"/>
+              <Choice value="不准确"/>
+              <Choice value="不适用"/>
+            </Choices>
+          </View>
+
+          <View className="eval-dimension">
+            <View className="eval-label"><Header value="完整性" size="5"/></View>
+            <Choices name="completeness" toName="output_display" choice="single" showInline="true">
+              <Choice value="完整"/>
+              <Choice value="部分完整"/>
+              <Choice value="不完整"/>
+              <Choice value="不适用"/>
+            </Choices>
+          </View>
+
+          <View className="eval-dimension">
+            <View className="eval-label"><Header value="问题标签" size="5"/></View>
+            <Choices name="issue_tags" toName="output_display" choice="multiple" showInline="true">
+              <Choice value="幻觉"/>
+              <Choice value="事实错误"/>
+              <Choice value="偏离主题"/>
+              <Choice value="格式问题"/>
+              <Choice value="安全隐患"/>
+              <Choice value="回答不完整"/>
+              <Choice value="内容重复"/>
+            </Choices>
+          </View>
+
+          <View className="eval-dimension">
+            <View className="eval-label"><Header value="备注" size="5"/></View>
+            <TextArea name="eval_comments" toName="output_display" rows="3" placeholder="补充说明或预期行为..."/>
+          </View>
+        </View>
+      </View>
+    </View>
+  </View>
+
+  <!-- { "data": {
+    "input": "请解释机器学习中迁移学习的概念，包括实际应用案例，以及什么情况下应该使用迁移学习而不是从头训练。",
+    "output": "迁移学习是一种机器学习技术，将在一个任务上训练好的模型作为另一个任务的起点。例如，在 ImageNet 上训练的模型可以微调用于医学图像分类。当目标任务的训练数据有限，但存在相关任务有大量数据时，迁移学习特别有用。当目标领域与源领域差异很大，或者你有充足的数据和算力时，应考虑从头训练。",
+    "metadata_text": "{\"task_type\": \"content_generation\", \"model\": \"gpt-4\", \"latency_ms\": 1250, \"tokens\": {\"input\": 42, \"output\": 156}}"
+  }} -->

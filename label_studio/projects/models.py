@@ -313,6 +313,22 @@ class Project(ProjectMixin, FsmHistoryStateModel):
     )
 
     sampling = models.CharField(max_length=100, choices=SAMPLING_CHOICES, null=True, default=SEQUENCE)
+
+    AUTO_DISTRIBUTION = 'auto'
+    MANUAL_DISTRIBUTION = 'manual'
+
+    DISTRIBUTION_CHOICES = (
+        (AUTO_DISTRIBUTION, 'Automatic task distribution'),
+        (MANUAL_DISTRIBUTION, 'Manual task assignment'),
+    )
+
+    task_distribution = models.CharField(
+        max_length=20,
+        choices=DISTRIBUTION_CHOICES,
+        default=AUTO_DISTRIBUTION,
+        help_text='How tasks are distributed: auto assigns to all members, manual requires explicit assignment',
+    )
+
     skip_queue = models.CharField(
         max_length=100, choices=SkipQueue.choices, null=True, default=SkipQueue.REQUEUE_FOR_OTHERS
     )
@@ -1394,11 +1410,22 @@ class LabelStreamHistory(models.Model):
 
 
 class ProjectMember(models.Model):
+    class ProjectRoleChoices(models.TextChoices):
+        ANNOTATOR = 'annotator', _('Annotator')
+        REVIEWER = 'reviewer', _('Reviewer')
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='project_memberships', help_text='User ID'
     )
     project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='members', help_text='Project ID')
     enabled = models.BooleanField(default=True, help_text='Project member is enabled')
+    role = models.CharField(
+        _('role'),
+        max_length=20,
+        choices=ProjectRoleChoices.choices,
+        default=ProjectRoleChoices.ANNOTATOR,
+        help_text='Role of the user in this project',
+    )
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     updated_at = models.DateTimeField(_('updated at'), auto_now=True)
 

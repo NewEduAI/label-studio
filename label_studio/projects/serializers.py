@@ -31,7 +31,7 @@ from label_studio_sdk.label_interface.control_tags import (
     TimeSeriesLabelsTag,
     VideoRectangleTag,
 )
-from projects.models import Project, ProjectImport, ProjectOnboarding, ProjectReimport, ProjectSummary
+from projects.models import Project, ProjectImport, ProjectMember, ProjectOnboarding, ProjectReimport, ProjectSummary
 from rest_flex_fields import FlexFieldsModelSerializer
 from rest_framework import serializers
 from rest_framework.serializers import SerializerMethodField
@@ -295,6 +295,7 @@ class ProjectSerializer(FlexFieldsModelSerializer):
             'total_annotations_number',
             'total_predictions_number',
             'sampling',
+            'task_distribution',
             'show_ground_truth_first',
             'annotator_evaluation_enabled',
             'show_overlap_first',
@@ -496,3 +497,21 @@ class GetFieldsSerializer(serializers.Serializer):
     def validate_filter(self, value):
         if value in ['all', 'pinned_only', 'exclude_pinned']:
             return value
+
+
+class ProjectMemberSerializer(serializers.ModelSerializer):
+    user = UserSimpleSerializer(read_only=True)
+
+    class Meta:
+        model = ProjectMember
+        fields = ['id', 'user', 'role', 'enabled', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+
+class ProjectMemberCreateSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(help_text='User ID to add as project member')
+    role = serializers.ChoiceField(
+        choices=ProjectMember.ProjectRoleChoices.choices,
+        default=ProjectMember.ProjectRoleChoices.ANNOTATOR,
+        help_text='Role of the user in this project',
+    )

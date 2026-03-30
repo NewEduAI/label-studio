@@ -63,6 +63,17 @@ from io_storages.redis.api import (
     RedisImportStorageSyncAPI,
     RedisImportStorageValidateAPI,
 )
+from io_storages.langfuse.api import (
+    LangfuseImportStorageDetailAPI,
+    LangfuseImportStorageFormLayoutAPI,
+    LangfuseImportStorageListAPI,
+    LangfuseImportStorageSyncAPI,
+    LangfuseImportStorageValidateAPI,
+    LangfuseQueuesAPI,
+    LangfuseQueueImportAPI,
+    LangfuseStatusAPI,
+)
+from io_storages.langfuse.serializers import LangfuseImportStorageSerializer
 from io_storages.s3.api import (
     S3ExportStorageDetailAPI,
     S3ExportStorageFormLayoutAPI,
@@ -150,6 +161,21 @@ _api_urlpatterns = [
     path('export/redis/<int:pk>/sync', RedisExportStorageSyncAPI.as_view(), name='export-storage-redis-sync'),
     path('export/redis/validate', RedisExportStorageValidateAPI.as_view(), name='export-storage-redis-validate'),
     path('export/redis/form', RedisExportStorageFormLayoutAPI.as_view(), name='export-storage-redis-form'),
+    # Langfuse: env-based queue import
+    path('langfuse/status', LangfuseStatusAPI.as_view(), name='langfuse-status'),
+    path('langfuse/queues', LangfuseQueuesAPI.as_view(), name='langfuse-queues'),
+    path('langfuse/queue-import', LangfuseQueueImportAPI.as_view(), name='langfuse-queue-import'),
+    # Langfuse (storage-based, backward compat)
+    path('langfuse/', LangfuseImportStorageListAPI.as_view(), name='storage-langfuse-list'),
+    path('langfuse/<int:pk>', LangfuseImportStorageDetailAPI.as_view(), name='storage-langfuse-detail'),
+    path('langfuse/<int:pk>/sync', LangfuseImportStorageSyncAPI.as_view(), name='storage-langfuse-sync'),
+    path('langfuse/validate', LangfuseImportStorageValidateAPI.as_view(), name='storage-langfuse-validate'),
+    path('langfuse/form', LangfuseImportStorageFormLayoutAPI.as_view(), name='storage-langfuse-form'),
+    path(
+        'langfuse/files',
+        ImportStorageListFilesAPI().as_view(serializer_class=LangfuseImportStorageSerializer),
+        name='storage-langfuse-list-files',
+    ),
 ]
 if settings.ENABLE_LOCAL_FILES_STORAGE:
     _api_urlpatterns += [

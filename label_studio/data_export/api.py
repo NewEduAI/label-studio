@@ -36,6 +36,7 @@ from .serializers import (
     ExportParamSerializer,
     ExportSerializer,
 )
+from .langfuse_export import LangfuseExportAPI  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

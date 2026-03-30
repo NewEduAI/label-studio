@@ -1,6 +1,6 @@
 import { formatDistance } from "date-fns";
-import { useCallback, useEffect, useState } from "react";
-import { Userpic } from "@humansignal/ui";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Select, Userpic } from "@humansignal/ui";
 import { Pagination, Spinner } from "../../../components";
 import { usePage, usePageSize } from "../../../components/Pagination/Pagination";
 import { useAPI } from "../../../providers/ApiProvider";
@@ -9,12 +9,47 @@ import { isDefined } from "../../../utils/helpers";
 import "./PeopleList.prefix.css";
 import { CopyableTooltip } from "../../../components/CopyableTooltip/CopyableTooltip";
 
+const EDITABLE_ROLE_OPTIONS = [
+  { value: "admin", label: "Admin" },
+  { value: "manager", label: "Manager" },
+  { value: "annotator", label: "Annotator" },
+];
+
+const RoleBadge = ({ role, memberId, canEdit, onRoleChange }) => {
+  const displayRole = role || "annotator";
+  const label = displayRole.charAt(0).toUpperCase() + displayRole.slice(1);
+
+  if (canEdit && displayRole !== "owner") {
+    return (
+      <div onClick={(e) => e.stopPropagation()}>
+        <Select
+          options={EDITABLE_ROLE_OPTIONS}
+          value={displayRole}
+          size="small"
+          onChange={(val) => onRoleChange(memberId, val)}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <span
+      className={cn("people-list").elem("role-badge").mod({
+        [displayRole]: true,
+      }).toClassName()}
+    >
+      {label}
+    </span>
+  );
+};
+
 export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
   const api = useAPI();
   const [usersList, setUsersList] = useState();
   const [currentPage] = usePage("page", 1);
   const [currentPageSize] = usePageSize("page_size", 30);
   const [totalItems, setTotalItems] = useState(0);
+  const [currentUserRole, setCurrentUserRole] = useState(null);
 
   const fetchUsers = useCallback(async (page, pageSize) => {
     const response = await api.callApi("memberships", {
@@ -29,8 +64,24 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
     if (response.results) {
       setUsersList(response.results);
       setTotalItems(response.count);
+
+      const me = await api.callApi("me");
+      if (me) {
+        const myMembership = response.results.find(({ user }) => user.id === me.id);
+        if (myMembership) setCurrentUserRole(myMembership.role);
+      }
     }
   }, []);
+
+  const handleRoleChange = useCallback(async (userId, newRole) => {
+    await api.callApi("updateMemberRole", {
+      params: { pk: 1, userPk: userId },
+      body: { role: newRole },
+    });
+    fetchUsers(currentPage, currentPageSize);
+  }, [currentPage, currentPageSize]);
+
+  const canEditRoles = currentUserRole === "owner" || currentUserRole === "admin";
 
   const selectUser = useCallback(
     (user) => {
@@ -65,10 +116,11 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
                 <div className={cn("people-list").elem("column").mix("avatar").toClassName()} />
                 <div className={cn("people-list").elem("column").mix("email").toClassName()}>Email</div>
                 <div className={cn("people-list").elem("column").mix("name").toClassName()}>Name</div>
+                <div className={cn("people-list").elem("column").mix("role").toClassName()}>Role</div>
                 <div className={cn("people-list").elem("column").mix("last-activity").toClassName()}>Last Activity</div>
               </div>
               <div className={cn("people-list").elem("body").toClassName()}>
-                {usersList.map(({ user }) => {
+                {usersList.map(({ user, role }) => {
                   const active = user.id === selectedUser?.id;
 
                   return (
@@ -85,6 +137,14 @@ export const PeopleList = ({ onSelect, selectedUser, defaultSelected }) => {
                       <div className={cn("people-list").elem("field").mix("email").toClassName()}>{user.email}</div>
                       <div className={cn("people-list").elem("field").mix("name").toClassName()}>
                         {user.first_name} {user.last_name}
+                      </div>
+                      <div className={cn("people-list").elem("field").mix("role").toClassName()}>
+                        <RoleBadge
+                          role={role}
+                          memberId={user.id}
+                          canEdit={canEditRoles}
+                          onRoleChange={handleRoleChange}
+                        />
                       </div>
                       <div className={cn("people-list").elem("field").mix("last-activity").toClassName()}>
                         {formatDistance(new Date(user.last_activity), new Date(), { addSuffix: true })}

@@ -171,6 +171,7 @@
       {% if user.avatar %}
       avatar: "{{user.avatar_url|safe}}",
       {% endif %}
+      organizationRole: {% if organization_role %}"{{ organization_role }}"{% else %}null{% endif %},
       {% block app_user_extra %}{% endblock %}
     },
     lookupHotkey: lookupHotkey,

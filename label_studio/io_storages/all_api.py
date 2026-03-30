@@ -107,7 +107,11 @@ class AllExportStorageTypesAPI(APIView):
     permission_required = all_permissions.storages_view
 
     def get(self, request, **kwargs):
-        return Response([{'name': s['name'], 'title': s['title']} for s in _common_storage_list])
+        return Response([
+            {'name': s['name'], 'title': s['title']}
+            for s in _common_storage_list
+            if s.get('export_list_api') is not None
+        ])
 
 
 @method_decorator(
@@ -179,6 +183,11 @@ class AllExportStorageListAPI(generics.ListAPIView):
 
     def list(self, request, *args, **kwargs):
         list_responses = sum(
-            [self._get_response(s['export_list_api'], request, *args, **kwargs) for s in _common_storage_list], []
+            [
+                self._get_response(s['export_list_api'], request, *args, **kwargs)
+                for s in _common_storage_list
+                if s.get('export_list_api') is not None
+            ],
+            [],
         )
         return Response(list_responses)

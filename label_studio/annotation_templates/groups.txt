@@ -8,4 +8,5 @@ Structured Data Parsing
 Time Series Analysis
 Videos
 Generative AI
+Evaluation
 Community Contributions

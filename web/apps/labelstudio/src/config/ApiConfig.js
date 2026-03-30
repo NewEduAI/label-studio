@@ -69,6 +69,8 @@ export const API_CONFIG = {
     export: "/projects/:pk/export",
     previousExports: "/projects/:pk/export/files",
     exportFormats: "/projects/:pk/export/formats",
+    exportLangfuse: "POST:/projects/:pk/export/langfuse",
+    exportLangfuseCheck: "GET:/projects/:pk/export/langfuse",
 
     // Version
     version: "/version",
@@ -95,6 +97,30 @@ export const API_CONFIG = {
 
     // FSM
     fsmStateHistory: "GET:/fsm/entities/:entityType/:entityId/history",
+
+    // Dashboard
+    projectDashboard: "GET:/projects/:pk/dashboard",
+
+    // Project members
+    projectMembers: "GET:/projects/:pk/members",
+    addProjectMember: "POST:/projects/:pk/members",
+    updateProjectMember: "PATCH:/projects/:pk/members/:memberPk",
+    removeProjectMember: "DELETE:/projects/:pk/members/:memberPk",
+
+    // Member role management
+    updateMemberRole: "PATCH:/organizations/:pk/memberships/:userPk",
+
+    // Langfuse
+    langfuseStatus: "GET:/storages/langfuse/status",
+    langfuseQueues: "GET:/storages/langfuse/queues",
+    langfuseQueueImport: "POST:/storages/langfuse/queue-import",
+    langfuseStorages: "GET:/storages/langfuse",
+    langfuseStorage: "GET:/storages/langfuse/:pk",
+    createLangfuseStorage: "POST:/storages/langfuse",
+    updateLangfuseStorage: "PATCH:/storages/langfuse/:pk",
+    deleteLangfuseStorage: "DELETE:/storages/langfuse/:pk",
+    syncLangfuseStorage: "POST:/storages/langfuse/:pk/sync",
+    validateLangfuseStorage: "POST:/storages/langfuse/validate",
   },
   alwaysExpectJSON: false,
 };
