@@ -1,0 +1,22 @@
+{
+  "template_id": "langfuse_module_content",
+  "task_type": "module_content",
+  "name": "模块内容生成评估",
+  "display_config": {
+    "layout": "left-right",
+    "input_fields": [
+      {
+        "name": "lesson_plan",
+        "label": "教案/需求描述",
+        "source": "input"
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "generated_content",
+        "label": "生成的模块内容",
+        "source": "output"
+      }
+    ]
+  }
+}

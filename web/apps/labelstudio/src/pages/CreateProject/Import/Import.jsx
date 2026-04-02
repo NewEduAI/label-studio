@@ -14,7 +14,7 @@ import { Button, CodeBlock, SimpleCard, Spinner, Tooltip, Typography, Badge } fr
 import truncate from "truncate-middle";
 import samples from "./samples.json";
 import { importFiles } from "./utils";
-import { LangfuseImportForm } from "./LangfuseImportForm";
+import { LangfuseImportForm, useLangfuseStatus } from "./LangfuseImportForm";
 
 const importClass = cn("upload_page");
 const dropzoneClass = cn("dropzone");
@@ -153,14 +153,22 @@ export const ImportPage = ({
   setCsvHandling,
   addColumns,
   openLabelingConfig,
+  onLangfuseStateChange,
 }) => {
   const [error, setError] = useState();
   const [newlyUploadedFiles, setNewlyUploadedFiles] = useState(new Set());
   const prevUploadedRef = useRef(new Set());
   const [showLangfuse, setShowLangfuse] = useState(false);
+  const [langfuseImportFn, setLangfuseImportFn] = useState(null);
+  const langfuse = useLangfuseStatus();
   const api = useAPI();
   const projectConfigured = project?.label_config !== "<View></View>";
   const sampleConfig = useAtomValue(sampleDatasetAtom);
+
+  // Notify parent about langfuse import state
+  useEffect(() => {
+    onLangfuseStateChange?.({ active: showLangfuse, importFn: langfuseImportFn });
+  }, [showLangfuse, langfuseImportFn, onLangfuseStateChange]);
 
   const processFiles = (state, action) => {
     if (action.sending) {
@@ -405,6 +413,7 @@ export const ImportPage = ({
           look={showLangfuse ? "filled" : "outlined"}
           type="button"
           onClick={() => setShowLangfuse(!showLangfuse)}
+          disabled={!langfuse.available}
           aria-label="Import from Langfuse"
         >
           {showLangfuse ? "← Back to Upload" : "Import from Langfuse"}
@@ -437,8 +446,7 @@ export const ImportPage = ({
         <main>
           <LangfuseImportForm
             project={project}
-            onComplete={() => setShowLangfuse(false)}
-            onCancel={() => setShowLangfuse(false)}
+            onImportReady={(fn) => setLangfuseImportFn(() => fn)}
           />
         </main>
       ) : (

@@ -1,0 +1,27 @@
+{
+  "template_id": "langfuse_chat",
+  "task_type": "chat",
+  "name": "对话式编辑评估",
+  "display_config": {
+    "layout": "left-right",
+    "input_fields": [
+      {
+        "name": "user_message",
+        "label": "用户消息",
+        "source": "input"
+      },
+      {
+        "name": "session_history_display",
+        "label": "会话历史",
+        "source": "session_history"
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "ai_response",
+        "label": "AI回复",
+        "source": "output"
+      }
+    ]
+  }
+}

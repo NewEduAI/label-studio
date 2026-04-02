@@ -182,6 +182,8 @@ class LangfuseExportAPI(generics.GenericAPIView):
             for sc in task.data.get('langfuse_score_configs') or []:
                 config_lookup[sc['name']] = sc['id']
 
+            logger.info(f'Task {task.id} trace {trace_id}: config_lookup={config_lookup}')
+
             task_exported = False
 
             for annotation in task.annotations.all():
@@ -194,16 +196,21 @@ class LangfuseExportAPI(generics.GenericAPIView):
 
                     for score_params in score_entries:
                         score_name = score_params.get('name', 'label')
+                        config_id = config_lookup.get(score_name)
+                        logger.info(f'Creating score: name={score_name}, value={score_params.get("value")}, '
+                                    f'data_type={score_params.get("data_type")}, config_id={config_id}, '
+                                    f'queue_id={queue_id}')
                         try:
-                            client.create_score(
+                            result = client.create_score(
                                 trace_id=trace_id,
                                 name=score_name,
                                 value=score_params.get('value'),
                                 comment=score_params.get('comment'),
                                 data_type=score_params.get('data_type'),
-                                config_id=config_lookup.get(score_name),
+                                config_id=config_id,
                                 queue_id=queue_id,
                             )
+                            logger.info(f'Score created successfully: {result}')
                             exported += 1
                             task_exported = True
                         except Exception as e:

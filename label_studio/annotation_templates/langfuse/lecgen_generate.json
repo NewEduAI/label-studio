@@ -1,0 +1,22 @@
+{
+  "template_id": "langfuse_lecgen_generate",
+  "task_type": "lecgen_generate",
+  "name": "讲稿生成评估",
+  "display_config": {
+    "layout": "left-right",
+    "input_fields": [
+      {
+        "name": "ppt_content",
+        "label": "PPT页面内容",
+        "source": "input"
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "generated_script",
+        "label": "AI生成的讲稿",
+        "source": "output"
+      }
+    ]
+  }
+}

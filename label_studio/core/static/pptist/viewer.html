@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PPT Viewer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #f5f5f5; }
+
+        /* 隐藏 pptist 编辑器 UI，只保留幻灯片区域 */
+        .editor-header,
+        .thumbnails,
+        .toolbar,
+        .element-toolbar,
+        .slide-design-panel,
+        .remark-panel,
+        .notes-panel,
+        .tab-bar { display: none !important; }
+
+        /* 让幻灯片区域占满 */
+        .editor-content { margin: 0 !important; padding: 0 !important; }
+        .slides-wrapper { width: 100% !important; height: 100vh !important; }
+
+        /* 加载提示 */
+        #loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #f5f5f5; z-index: 99999;
+            display: flex; justify-content: center; align-items: center;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            color: #666; font-size: 14px;
+        }
+        #loading-overlay.hidden { display: none; }
+
+        /* 翻页控制 */
+        #page-controls {
+            position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+            z-index: 10000; display: none; gap: 12px; align-items: center;
+            background: rgba(255,255,255,0.95); padding: 6px 16px;
+            border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 13px;
+        }
+        #page-controls button {
+            padding: 4px 12px; border: 1px solid #ddd; border-radius: 4px;
+            background: #fff; cursor: pointer; font-size: 13px;
+        }
+        #page-controls button:hover { background: #f0f0f0; }
+        #page-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div id="loading-overlay">正在加载 PPT 预览...</div>
+    <div id="page-controls">
+        <button id="btn-prev">&lt;</button>
+        <span id="page-info">1 / 1</span>
+        <button id="btn-next">&gt;</button>
+    </div>
+
+    <!-- pptist 挂载点 -->
+    <div id="app"></div>
+
+    <!-- 加载 pptist -->
+    <link rel="stylesheet" href="./assets/index-DuXd4uQ-.css">
+    <script type="module" src="./assets/index-eef3r8TX.js"></script>
+
+    <script type="module">
+        let slidesStore = null;
+        let currentPage = 0;
+        let totalPages = 0;
+
+        // 等待 pptist 初始化
+        function waitForPptist(maxWait) {
+            maxWait = maxWait || 15000;
+            return new Promise(function(resolve, reject) {
+                var start = Date.now();
+                function check() {
+                    var appEl = document.querySelector('#app');
+                    var app = appEl && appEl.__vue_app__;
+                    if (app) {
+                        var pinia = app.config.globalProperties.$pinia;
+                        if (pinia) {
+                            var store = pinia._s.get('slides');
+                            if (store) return resolve(store);
+                        }
+                    }
+                    if (Date.now() - start > maxWait) return reject(new Error('PPTist init timeout'));
+                    setTimeout(check, 200);
+                }
+                check();
+            });
+        }
+
+        // 将 module snapshot 转为 pptist slides
+        function snapshotToSlides(snapshot) {
+            var components = snapshot.components || [];
+            var slides = [];
+            var canvasWidth = 1000;
+            var canvasHeight = 562.5;
+
+            for (var i = 0; i < components.length; i++) {
+                var comp = components[i];
+                if (comp.component_type !== 'canvas') continue;
+                var content = comp.content || {};
+                if (content.canvas_width) canvasWidth = content.canvas_width;
+                if (content.canvas_height) canvasHeight = content.canvas_height;
+                slides.push({
+                    id: comp.component_id || ('slide_' + slides.length),
+                    elements: content.elements || [],
+                    background: content.background || { type: 'solid', color: '#ffffff' }
+                });
+            }
+
+            // 如果没有 components 结构，尝试直接当作单页 canvas
+            if (slides.length === 0 && snapshot.elements) {
+                slides.push({
+                    id: 'slide_0',
+                    elements: snapshot.elements || [],
+                    background: snapshot.background || { type: 'solid', color: '#ffffff' }
+                });
+            }
+
+            return { width: canvasWidth, height: canvasHeight, slides: slides };
+        }
+
+        // 翻页
+        function updatePage() {
+            document.getElementById('page-info').textContent = (currentPage + 1) + ' / ' + totalPages;
+            document.getElementById('btn-prev').disabled = currentPage === 0;
+            document.getElementById('btn-next').disabled = currentPage === totalPages - 1;
+        }
+
+        document.getElementById('btn-prev').addEventListener('click', function() {
+            if (currentPage > 0) {
+                currentPage--;
+                slidesStore.updateSlideIndex(currentPage);
+                updatePage();
+            }
+        });
+
+        document.getElementById('btn-next').addEventListener('click', function() {
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+                slidesStore.updateSlideIndex(currentPage);
+                updatePage();
+            }
+        });
+
+        // 加载 snapshot 数据并渲染
+        async function loadSnapshot(snapshot) {
+            try {
+                var slideData = snapshotToSlides(snapshot);
+                if (slideData.slides.length === 0) throw new Error('No slides');
+
+                slidesStore = await waitForPptist();
+
+                slidesStore.setViewportSize(slideData.width);
+                slidesStore.setViewportRatio(slideData.height / slideData.width);
+                slidesStore.setSlides(slideData.slides);
+                slidesStore.updateSlideIndex(0);
+
+                totalPages = slideData.slides.length;
+                currentPage = 0;
+
+                if (totalPages > 1) {
+                    document.getElementById('page-controls').style.display = 'flex';
+                    updatePage();
+                }
+
+                document.getElementById('loading-overlay').classList.add('hidden');
+            } catch (e) {
+                document.getElementById('loading-overlay').textContent = '加载失败: ' + e.message;
+            }
+        }
+
+        // 监听 postMessage（从父页面接收 snapshot 数据）
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'load-snapshot') {
+                loadSnapshot(event.data.snapshot);
+            }
+        });
+
+        // 通知父页面 viewer 已就绪
+        window.addEventListener('DOMContentLoaded', function() {
+            setTimeout(function() {
+                if (window.parent !== window) {
+                    window.parent.postMessage({ type: 'viewer-ready' }, '*');
+                }
+            }, 500);
+        });
+    </script>
+</body>
+</html>

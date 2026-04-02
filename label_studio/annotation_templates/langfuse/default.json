@@ -1,0 +1,22 @@
+{
+  "template_id": "langfuse_default",
+  "task_type": "default",
+  "name": "默认评估模板",
+  "display_config": {
+    "layout": "left-right",
+    "input_fields": [
+      {
+        "name": "input_text",
+        "label": "输入内容",
+        "source": "input"
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "output_text",
+        "label": "输出内容",
+        "source": "output"
+      }
+    ]
+  }
+}

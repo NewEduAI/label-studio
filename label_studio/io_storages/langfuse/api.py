@@ -146,24 +146,7 @@ class LangfuseQueueImportAPI(APIView):
         except Exception as e:
             logger.warning(f'Failed to fetch queue details for {queue_id}: {e}')
 
-        if score_configs:
-            from io_storages.langfuse.template_generator import (
-                extract_score_config_summary,
-                generate_label_config,
-            )
-            score_config_summary = extract_score_config_summary(score_configs)
-
-            default_configs = {'<View></View>', '<View/>', '', None}
-            if project.label_config in default_configs:
-                try:
-                    xml = generate_label_config(score_configs)
-                    project.label_config = xml
-                    project.save()
-                    label_config_generated = True
-                    logger.info(f'Auto-generated label config for project {project_id} from {len(score_configs)} score configs')
-                except Exception as e:
-                    logger.error(f'Failed to auto-generate label config: {e}', exc_info=True)
-
+        # Fetch queue items first (needed for task_type detection and task creation)
         try:
             items = client.list_queue_items(queue_id, status_filter='PENDING')
             queue_items = [
@@ -176,6 +159,42 @@ class LangfuseQueueImportAPI(APIView):
                 {'detail': f'Failed to fetch queue items: {e}'},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
+
+        if score_configs:
+            from io_storages.langfuse.template_generator import (
+                extract_score_config_summary,
+                generate_label_config,
+            )
+            score_config_summary = extract_score_config_summary(score_configs)
+
+            default_configs = {'<View></View>', '<View/>', '', None}
+            current_config = (project.label_config or '').strip()
+            is_empty_config = current_config in default_configs or not current_config
+            logger.info(f'Project {project_id} label_config check: is_empty={is_empty_config}, config_len={len(current_config)}, config_start={current_config[:80]!r}')
+            if is_empty_config:
+                try:
+                    # Detect task_type from first trace metadata
+                    task_type = None
+                    try:
+                        if queue_items:
+                            trace = client.get_trace(queue_items[0]['trace_id'])
+                            task_type = trace.get('metadata', {}).get('task_type')
+                            logger.info(f'Detected task_type: {task_type}')
+                    except Exception as e:
+                        logger.warning(f'Failed to detect task_type: {e}')
+
+                    xml = generate_label_config(
+                        score_configs,
+                        task_type=task_type,
+                        queue_name=queue_data.get('name'),
+                        queue_description=queue_data.get('description'),
+                    )
+                    project.label_config = xml
+                    project.save()
+                    label_config_generated = True
+                    logger.info(f'Auto-generated label config for project {project_id} with task_type={task_type}')
+                except Exception as e:
+                    logger.error(f'Failed to auto-generate label config: {e}', exc_info=True)
 
         from tasks.models import Task
         created = 0
@@ -196,6 +215,12 @@ class LangfuseQueueImportAPI(APIView):
                 task_data = normalize_langfuse_trace(trace, observations)
                 task_data['langfuse_queue_id'] = queue_id
                 task_data['langfuse_queue_item_id'] = qi['queue_item_id']
+
+                # Extract task_type from trace metadata
+                task_type_from_trace = trace.get('metadata', {}).get('task_type')
+                if task_type_from_trace:
+                    task_data['task_type'] = task_type_from_trace
+
                 if score_config_summary:
                     task_data['langfuse_score_configs'] = score_config_summary
                 Task.objects.create(
@@ -206,7 +231,7 @@ class LangfuseQueueImportAPI(APIView):
                 created += 1
             except Exception as e:
                 errors.append(f'Trace {trace_id}: {e}')
-                logger.warning(f'Failed to import trace {trace_id}: {e}')
+                logger.warning(f'Failed to import trace {trace_id}: {e}', exc_info=True)
 
         return Response({
             'created': created,

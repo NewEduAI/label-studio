@@ -1,0 +1,22 @@
+{
+  "template_id": "langfuse_lecgen_polish",
+  "task_type": "lecgen_polish",
+  "name": "讲稿润色评估",
+  "display_config": {
+    "layout": "left-right",
+    "input_fields": [
+      {
+        "name": "original_context",
+        "label": "PPT内容 + 当前讲稿",
+        "source": "input"
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "polished_result",
+        "label": "润色后讲稿",
+        "source": "output"
+      }
+    ]
+  }
+}

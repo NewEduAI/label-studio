@@ -1,0 +1,22 @@
+{
+  "template_id": "langfuse_lecgen_topic",
+  "task_type": "lecgen_topic",
+  "name": "主题生成评估",
+  "display_config": {
+    "layout": "left-right",
+    "input_fields": [
+      {
+        "name": "user_request",
+        "label": "用户要求",
+        "source": "input"
+      }
+    ],
+    "output_fields": [
+      {
+        "name": "generated_title",
+        "label": "AI生成的标题",
+        "source": "output"
+      }
+    ]
+  }
+}

@@ -1,7 +1,6 @@
 import base64
 import json
 import logging
-from datetime import datetime
 from typing import Iterator
 
 import requests
@@ -138,170 +137,13 @@ class LangfuseClient:
         return results[:limit]
 
 
-def _to_str(x):
-    if x is None:
-        return ''
-    if isinstance(x, str):
-        return x
-    try:
-        return json.dumps(x, indent=2, default=str, ensure_ascii=False)
-    except (TypeError, ValueError):
-        return str(x)
-
-
-def _extract_content(obj):
-    if obj is None:
-        return ''
-    if isinstance(obj, str):
-        return obj
-    if isinstance(obj, dict):
-        for key in ('content', 'text', 'input', 'output', 'result'):
-            if isinstance(obj.get(key), str) and obj[key].strip():
-                return obj[key]
-        return _to_str(obj)
-    if isinstance(obj, list):
-        parts = [_extract_content(item) for item in obj if _extract_content(item).strip()]
-        return '\n'.join(parts) if parts else _to_str(obj)
-    return str(obj)
-
-
-def _normalize_usage(obs):
-    raw = obs.get('usageDetails') or obs.get('usage')
-    if not isinstance(raw, dict):
-        return None
-    return {
-        'input_tokens': raw.get('inputTokens') or raw.get('input_tokens') or raw.get('input') or 0,
-        'output_tokens': raw.get('outputTokens') or raw.get('output_tokens') or raw.get('output') or 0,
-    }
-
-
-def _duration_ms(start_str, end_str):
-    if not start_str or not end_str:
-        return None
-    try:
-        def _parse(s):
-            return datetime.fromisoformat(str(s).replace('Z', '+00:00'))
-        return int((_parse(end_str) - _parse(start_str)).total_seconds() * 1000)
-    except (ValueError, TypeError):
-        return None
-
-
 def normalize_langfuse_trace(trace, observations):
     """Convert a Langfuse trace + observations into Label Studio task data.
 
-    Produces two formats simultaneously:
-    - 'turns' array for chat-eval / trace-review templates (Paragraphs component)
-    - 'input' / 'output' strings for generic-eval template (Text component)
+    Uses task adapters for type-specific extraction.
     """
-    trace_id = trace.get('id') or trace.get('traceId')
-    obs_sorted = sorted(observations, key=lambda o: o.get('startTime') or o.get('createdAt') or '')
-    turns = []
-    turn_counter = 0
-    seen_user_messages = set()
-
-    def add_turn(role, content, **kwargs):
-        nonlocal turn_counter
-        if not content or not content.strip():
-            return
-        turn = {
-            'turn_id': f'turn_{turn_counter}',
-            'role': role,
-            'content': content.strip(),
-        }
-        for k in ('model', 'usage', 'tool_calls', 'tool_name', 'tool_input', 'duration_ms'):
-            if kwargs.get(k) is not None:
-                turn[k] = kwargs[k]
-        turns.append(turn)
-        turn_counter += 1
-
-    for obs in obs_sorted:
-        otype = (obs.get('type') or '').upper()
-        ts = obs.get('startTime') or obs.get('createdAt') or ''
-        duration = _duration_ms(obs.get('startTime') or obs.get('createdAt'), obs.get('endTime'))
-        inp, out = obs.get('input'), obs.get('output')
-
-        if otype == 'GENERATION':
-            if isinstance(inp, list):
-                for msg in inp:
-                    if isinstance(msg, dict) and msg.get('role') == 'user':
-                        content = msg.get('content', '')
-                        if isinstance(content, list):
-                            content = ' '.join(
-                                p.get('text', '') if isinstance(p, dict) else str(p) for p in content
-                            )
-                        if content and content.strip():
-                            msg_key = content[:200]
-                            if msg_key not in seen_user_messages:
-                                seen_user_messages.add(msg_key)
-                                add_turn('user', content)
-
-            if isinstance(out, dict):
-                raw_content = out.get('content', '')
-                tool_calls = []
-                for tc in out.get('tool_calls', []):
-                    if isinstance(tc, dict):
-                        tool_calls.append({
-                            'tool_name': tc.get('name', 'unknown'),
-                            'input': _to_str(tc.get('args', tc.get('input', ''))),
-                            'call_id': tc.get('id', ''),
-                        })
-
-                assistant_content = raw_content if isinstance(raw_content, str) else _extract_content(raw_content)
-                if assistant_content and assistant_content.strip():
-                    add_turn(
-                        'assistant', assistant_content,
-                        model=obs.get('model') or obs.get('providedModelName'),
-                        usage=_normalize_usage(obs),
-                        tool_calls=tool_calls if tool_calls else None,
-                        duration_ms=duration,
-                    )
-
-        elif otype == 'TOOL':
-            tool_name = obs.get('name') or 'unknown'
-            tool_output = _extract_content(out) if out else ''
-            if tool_output:
-                add_turn(
-                    'tool', f'[{tool_name}] {tool_output}',
-                    tool_name=tool_name,
-                    tool_input=_to_str(inp) if inp else '',
-                    duration_ms=duration,
-                )
-
-    if not turns:
-        if trace_input := _extract_content(trace.get('input')):
-            add_turn('user', trace_input)
-        if trace_output := _extract_content(trace.get('output')):
-            add_turn('assistant', trace_output)
-
-    input_text = _extract_content(trace.get('input')) or (
-        '\n'.join(t['content'] for t in turns if t['role'] == 'user')
-    )
-    output_text = _extract_content(trace.get('output')) or (
-        '\n'.join(t['content'] for t in turns if t['role'] == 'assistant')
-    )
-
-    metadata = {
-        'trace_id': str(trace_id),
-        'session_id': str(trace.get('sessionId') or trace_id),
-        'source': 'langfuse',
-        'name': trace.get('name'),
-        'tags': trace.get('tags') or [],
-        'start_time': trace.get('timestamp') or trace.get('createdAt') or '',
-    }
-
-    return {
-        'trace_id': str(trace_id),
-        'input': input_text,
-        'output': output_text,
-        'turns': turns,
-        'context': trace.get('name') or '',
-        'metadata_text': json.dumps(metadata, indent=2, default=str, ensure_ascii=False),
-        'trace_summary': (
-            f"Trace: {str(trace_id)[:12]}... | "
-            f"Session: {metadata['session_id'][:20]} | "
-            f"Source: langfuse | Turns: {len(turns)}"
-        ),
-    }
+    from io_storages.langfuse.task_adapters import normalize_trace_for_labeling
+    return normalize_trace_for_labeling(trace, observations)
 
 
 class LangfuseStorageMixin(models.Model):

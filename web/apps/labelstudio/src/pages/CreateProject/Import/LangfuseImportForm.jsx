@@ -1,50 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Select } from "@humansignal/ui";
 import { Spinner } from "../../../components";
 import { useAPI } from "../../../providers/ApiProvider";
-import { cn } from "../../../utils/bem";
-import "./LangfuseImportForm.prefix.css";
 
-const rootClass = cn("langfuse-import");
-
-export const LangfuseImportForm = ({ project, onComplete, onCancel }) => {
+export const LangfuseImportForm = ({ project, onImportReady }) => {
   const api = useAPI();
 
-  const [status, setStatus] = useState(null);
   const [queues, setQueues] = useState([]);
   const [selectedQueue, setSelectedQueue] = useState("");
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const statusRes = await api.callApi("langfuseStatus");
+        const queuesRes = await api.callApi("langfuseQueues");
         if (cancelled) return;
-        setStatus(statusRes);
-
-        if (statusRes?.connected) {
-          const queuesRes = await api.callApi("langfuseQueues");
-          if (cancelled) return;
-          setQueues(queuesRes?.data || []);
-        }
+        setQueues(queuesRes?.data || []);
       } catch (e) {
-        if (!cancelled) setError("Failed to check Langfuse connection");
+        if (!cancelled) setError("Failed to fetch queues");
       }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
   }, [api]);
 
-  const handleImport = useCallback(async () => {
-    if (!selectedQueue) return;
+  const doImport = useCallback(async () => {
+    if (!selectedQueue) return null;
     setError(null);
-    setResult(null);
-    setImporting(true);
     try {
       const res = await api.callApi("langfuseQueueImport", {
         body: {
@@ -54,142 +38,128 @@ export const LangfuseImportForm = ({ project, onComplete, onCancel }) => {
       });
       if (res?.error) {
         setError(res.response?.detail || "Import failed");
-      } else {
-        setResult(res);
-        if (res.created > 0) {
-          setTimeout(() => onComplete?.(), 2000);
-        }
+        return null;
       }
+      return res;
     } catch (e) {
       setError("Import failed");
+      return null;
     }
-    setImporting(false);
-  }, [api, project, selectedQueue, onComplete]);
+  }, [api, project, selectedQueue]);
 
-  const queueOptions = useMemo(
-    () =>
-      queues.map((q) => ({
-        value: q.id,
-        label: q.name + (q.description ? ` — ${q.description}` : ""),
-      })),
-    [queues],
-  );
-
-  const selectedQueueInfo = queues.find((q) => q.id === selectedQueue);
+  useEffect(() => {
+    onImportReady?.(selectedQueue ? doImport : null);
+  }, [selectedQueue, doImport, onImportReady]);
 
   if (loading) {
     return (
-      <div className={rootClass.toClassName()}>
-        <div className={rootClass.elem("loading").toClassName()}>
-          <Spinner size={24} />
-          <span>Checking Langfuse connection...</span>
-        </div>
+      <div className="flex items-center justify-center gap-3 p-12 text-neutral-content-subtle text-body-medium">
+        <Spinner size={24} />
+        <span>Loading annotation queues...</span>
+      </div>
+    );
+  }
+
+  if (queues.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16 text-center text-neutral-content-subtle">
+        <h3 className="text-base font-semibold text-neutral-content mt-3 mb-1">
+          No annotation queues found
+        </h3>
+        <p className="text-body-small">
+          Create an annotation queue in Langfuse first, then come back to import.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className={rootClass.toClassName()}>
-      <div className={rootClass.elem("header").toClassName()}>
-        <div className={rootClass.elem("logo").toClassName()}>LF</div>
-        <div>
-          <h3 className={rootClass.elem("title").toClassName()}>Import from Langfuse</h3>
-          <p className={rootClass.elem("subtitle").toClassName()}>
-            Import traces from an annotation queue into this project
-          </p>
-        </div>
+    <div className="p-6 space-y-6">
+      <div>
+        <h2 className="text-xl font-semibold">Select an annotation queue</h2>
+        <p className="text-muted-foreground">
+          Choose a Langfuse annotation queue to import traces from
+        </p>
       </div>
 
-      <div className={rootClass.elem("status-bar").toClassName()}>
-        <span
-          className={rootClass
-            .elem("status-dot")
-            .mod({ connected: status?.connected })
-            .toClassName()}
-        />
-        <span className={rootClass.elem("status-text").toClassName()}>
-          {status?.connected
-            ? `Connected to ${status.host}`
-            : status?.configured
-              ? `Connection failed: ${status.message}`
-              : "Not configured — set LANGFUSE_HOST, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY in environment"}
-        </span>
-      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-base">
+        {queues.map((q) => {
+          const isSelected = selectedQueue === q.id;
+          const scoreCount = q.scoreConfigIds?.length || 0;
 
-      {status?.connected && (
-        <div className={rootClass.elem("form").toClassName()}>
-          <div className={rootClass.elem("field").toClassName()}>
-            {queues.length === 0 ? (
-              <>
-                <label className={rootClass.elem("label").toClassName()}>
-                  Annotation Queue
-                </label>
-                <p className={rootClass.elem("hint").toClassName()}>
-                  No annotation queues found. Create one in Langfuse first.
+          return (
+            <button
+              key={q.id}
+              type="button"
+              onClick={() => {
+                setSelectedQueue(isSelected ? "" : q.id);
+                setError(null);
+              }}
+              className={[
+                "relative p-base border-2 rounded-lg transition-all duration-200 text-left min-h-[100px]",
+                "flex flex-col gap-tight",
+                "hover:border-primary-border-subtle hover:bg-primary-emphasis-subtle",
+                "hover:-translate-y-tightest focus:outline-none focus:ring-2 focus:ring-primary-focus-outline focus:ring-offset-2",
+                isSelected
+                  ? "border-primary-border-subtle bg-primary-emphasis-subtle shadow-sm"
+                  : "border-neutral-border",
+              ].join(" ")}
+              aria-pressed={isSelected}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="text-body-medium font-medium text-neutral-content">
+                  {q.name}
+                </h3>
+                {isSelected && (
+                  <span className="w-5 h-5 rounded-full bg-primary-content text-white flex items-center justify-center text-xs font-bold shrink-0">
+                    ✓
+                  </span>
+                )}
+              </div>
+
+              {q.description && (
+                <p className="text-body-small text-neutral-content-subtler leading-snug">
+                  {q.description}
                 </p>
-              </>
-            ) : (
-              <Select
-                label="Annotation Queue"
-                options={queueOptions}
-                value={selectedQueue || undefined}
-                placeholder="Select a queue..."
-                onChange={(val) => {
-                  setSelectedQueue(val);
-                  setResult(null);
-                  setError(null);
-                }}
-              />
-            )}
-          </div>
-
-          {selectedQueueInfo && (
-            <div className={rootClass.elem("queue-info").toClassName()}>
-              <span>Queue: <strong>{selectedQueueInfo.name}</strong></span>
-              {selectedQueueInfo.description && (
-                <span> — {selectedQueueInfo.description}</span>
               )}
-            </div>
-          )}
 
-          {error && (
-            <div className={rootClass.elem("error").toClassName()}>{error}</div>
-          )}
-          {result && (
-            <div className={rootClass.elem("success").toClassName()}>
-              Imported {result.created} tasks
-              {result.skipped > 0 && `, ${result.skipped} already existed`}
-              {" "}(total {result.total} traces in queue)
-              {result.label_config_generated && (
-                <div className={rootClass.elem("config-notice").toClassName()}>
-                  Label config auto-generated from {result.score_configs_count} Langfuse score config(s).
+              {scoreCount > 0 && (
+                <div className="mt-auto pt-1">
+                  <span className="inline-block px-1.5 py-0.5 rounded text-body-smaller text-neutral-content-subtler bg-neutral-surface border border-neutral-border">
+                    {scoreCount} score dimension{scoreCount > 1 ? "s" : ""}
+                  </span>
                 </div>
               )}
-            </div>
-          )}
+            </button>
+          );
+        })}
+      </div>
 
-          <div className={rootClass.elem("actions").toClassName()}>
-            <Button
-              onClick={handleImport}
-              disabled={!selectedQueue || importing}
-              waiting={importing}
-            >
-              {importing ? (
-                <>
-                  <Spinner size={16} /> Importing...
-                </>
-              ) : (
-                "Import from Queue"
-              )}
-            </Button>
-            {onCancel && (
-              <Button look="outlined" variant="neutral" onClick={onCancel}>
-                Back
-              </Button>
-            )}
-          </div>
-        </div>
+      {error && (
+        <p className="text-body-small text-negative-content">{error}</p>
       )}
     </div>
   );
+};
+
+export const useLangfuseStatus = () => {
+  const api = useAPI();
+  const [available, setAvailable] = useState(false);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.callApi("langfuseStatus");
+        if (!cancelled) setAvailable(res?.connected === true);
+      } catch {
+        if (!cancelled) setAvailable(false);
+      }
+      if (!cancelled) setChecked(true);
+    })();
+    return () => { cancelled = true; };
+  }, [api]);
+
+  return { available, checked };
 };

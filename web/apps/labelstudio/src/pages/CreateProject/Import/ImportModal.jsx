@@ -19,6 +19,7 @@ export const Inner = () => {
   const { project } = useProject();
   const [waiting, setWaitingStatus] = useState(false);
   const [sample, setSample] = useState(null);
+  const [langfuseState, setLangfuseState] = useState({ active: false, importFn: null });
   const api = useAPI();
 
   const { uploading, uploadDisabled, finishUpload, fileIds, pageProps, uploadSample } = useImportPage(project);
@@ -47,6 +48,18 @@ export const Inner = () => {
   }, [modal, project, fileIds, backToDM]);
 
   const onFinish = useCallback(async () => {
+    // Langfuse import mode
+    if (langfuseState.active && langfuseState.importFn) {
+      setWaitingStatus(true);
+      const res = await langfuseState.importFn();
+      setWaitingStatus(false);
+      if (res) {
+        backToDM();
+      }
+      return;
+    }
+
+    // Normal file import mode
     if (sample) {
       await uploadSample(
         sample,
@@ -59,7 +72,7 @@ export const Inner = () => {
 
     if (!imported) return;
     backToDM();
-  }, [backToDM, finishUpload, sample]);
+  }, [backToDM, finishUpload, sample, langfuseState]);
 
   return (
     <Modal
@@ -89,7 +102,7 @@ export const Inner = () => {
             size="small"
             onClick={onFinish}
             waiting={waiting || uploading}
-            disabled={uploadDisabled}
+            disabled={langfuseState.active ? !langfuseState.importFn : uploadDisabled}
             aria-label="Finish import"
           >
             Import
@@ -101,6 +114,7 @@ export const Inner = () => {
         sample={sample}
         onSampleDatasetSelect={setSample}
         projectConfigured={Object.keys(project.parsed_label_config ?? {}).length > 0}
+        onLangfuseStateChange={setLangfuseState}
         openLabelingConfig={() => {
           history.push(`/projects/${project.id}/settings/labeling`);
         }}
