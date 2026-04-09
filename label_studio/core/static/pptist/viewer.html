@@ -9,18 +9,30 @@
         body { overflow: hidden; background: #f5f5f5; }
 
         /* 隐藏 pptist 编辑器 UI，只保留幻灯片区域 */
+        /* 顶部标题栏 */
+        .layout-header,
         .editor-header,
+        /* 左侧缩略图面板 */
+        .layout-content-left,
         .thumbnails,
+        .slide-thumbnails,
+        .mobile-thumbnails,
+        .bottom-thumbnails,
+        /* 编辑工具栏（形状、图片、连线等按钮行） */
+        .center-top,
         .toolbar,
+        .slide-toolbar,
         .element-toolbar,
+        .mobile-editor-header,
+        /* 右侧设计/备注面板 */
+        .layout-content-right,
         .slide-design-panel,
-        .remark-panel,
-        .notes-panel,
-        .tab-bar { display: none !important; }
+        .notes-panel { display: none !important; }
 
-        /* 让幻灯片区域占满 */
-        .editor-content { margin: 0 !important; padding: 0 !important; }
-        .slides-wrapper { width: 100% !important; height: 100vh !important; }
+        /* 让幻灯片区域占满（覆盖 pptist 预设的减去左右面板宽度的 calc） */
+        .layout-content { height: 100vh !important; }
+        .layout-content-center { width: 100% !important; height: 100% !important; }
+        .pptist-editor { width: 100% !important; height: 100vh !important; }
 
         /* 加载提示 */
         #loading-overlay {
@@ -61,8 +73,8 @@
     <div id="app"></div>
 
     <!-- 加载 pptist -->
-    <link rel="stylesheet" href="./assets/index-DuXd4uQ-.css">
-    <script type="module" src="./assets/index-eef3r8TX.js"></script>
+    <link rel="stylesheet" href="./pptist-dist/assets/index-DuXd4uQ-.css">
+    <script type="module" src="./pptist-dist/assets/index-eef3r8TX.js"></script>
 
     <script type="module">
         let slidesStore = null;
@@ -180,8 +192,28 @@
             }
         });
 
+        // 从 URL hash 读取 base64 编码的 snapshot 数据
+        // 用于 Label Studio HyperText 嵌入场景（避免 script 标签被 sanitize）
+        function loadFromHash() {
+            var hash = window.location.hash;
+            if (hash && hash.indexOf('#snapshot=') === 0) {
+                try {
+                    var b64 = hash.substring('#snapshot='.length);
+                    var bytes = Uint8Array.from(atob(b64), function(c) { return c.charCodeAt(0); });
+                    var jsonStr = new TextDecoder().decode(bytes);
+                    var snapshot = JSON.parse(jsonStr);
+                    loadSnapshot(snapshot);
+                } catch (e) {
+                    document.getElementById('loading-overlay').textContent = '数据解析失败: ' + e.message;
+                }
+            }
+        }
+
         // 通知父页面 viewer 已就绪
         window.addEventListener('DOMContentLoaded', function() {
+            // 优先从 URL hash 加载数据
+            loadFromHash();
+
             setTimeout(function() {
                 if (window.parent !== window) {
                     window.parent.postMessage({ type: 'viewer-ready' }, '*');

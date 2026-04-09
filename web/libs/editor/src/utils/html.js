@@ -535,6 +535,11 @@ function sanitizeHtml(html = []) {
       return false;
     }
 
+    // Allow same-origin static resources (e.g. /static/pptist/viewer.html)
+    if (src.startsWith("/static/")) {
+      return true;
+    }
+
     try {
       const url = new URL(src);
       // Only allow HTTPS for security
