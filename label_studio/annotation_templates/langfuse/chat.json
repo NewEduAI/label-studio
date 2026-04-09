@@ -6,6 +6,12 @@
     "layout": "left-right",
     "input_fields": [
       {
+        "name": "initial_ppt",
+        "label": "编辑前PPT",
+        "source": "ppt_viewer_initial_ppt",
+        "type": "iframe"
+      },
+      {
         "name": "user_message",
         "label": "用户消息",
         "source": "input"
@@ -13,14 +19,14 @@
       {
         "name": "session_history_display",
         "label": "会话历史",
-        "source": "session_history"
-      }
-    ],
-    "output_fields": [
+        "source": "session_history_html",
+        "type": "hypertext"
+      },
       {
-        "name": "ai_response",
-        "label": "AI回复",
-        "source": "output"
+        "name": "final_ppt",
+        "label": "编辑后PPT",
+        "source": "ppt_viewer_final_ppt",
+        "type": "iframe"
       }
     ]
   }

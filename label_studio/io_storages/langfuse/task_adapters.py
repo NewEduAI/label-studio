@@ -90,6 +90,21 @@ class LecgenGenerateAdapter(BaseTaskAdapter):
 class ChatAdapter(BaseTaskAdapter):
     """Adapter for chat task with snapshots and conversation."""
 
+    _CHAT_STYLES = """
+    <style>
+    .chat-history { display:flex; flex-direction:column; gap:8px; font-size:13px; line-height:1.5; }
+    .chat-msg { max-width:85%; padding:8px 12px; border-radius:10px; word-break:break-word; }
+    .chat-user { align-self:flex-end; background:#e3f2fd; color:#1a1a1a; border-bottom-right-radius:2px; }
+    .chat-assistant { align-self:flex-start; background:#f5f5f5; color:#333; border-bottom-left-radius:2px; }
+    .chat-role { font-size:11px; font-weight:600; color:#888; margin-bottom:2px; }
+    .chat-tool { align-self:flex-start; max-width:90%; }
+    .chat-tool summary { cursor:pointer; font-size:12px; color:#888; padding:4px 8px; background:#fafafa; border:1px solid #eee; border-radius:6px; user-select:none; }
+    .chat-tool summary:hover { background:#f0f0f0; }
+    .chat-tool pre { margin:6px 0 0 0; padding:8px; background:#f8f8f8; border:1px solid #eee; border-radius:4px; font-size:11px; max-height:200px; overflow:auto; white-space:pre-wrap; word-break:break-all; }
+    .chat-system { align-self:center; font-size:11px; color:#999; font-style:italic; padding:4px 12px; background:#fff8e1; border-radius:10px; }
+    </style>
+    """.strip()
+
     def extract(self) -> Dict[str, Any]:
         """Extract chat data including snapshots and turns."""
         base_data = super().extract()
@@ -97,7 +112,6 @@ class ChatAdapter(BaseTaskAdapter):
         initial_snapshot = self.metadata.get('initial_module_snapshot', {})
         final_snapshot = self.metadata.get('final_module_snapshot', {})
 
-        # Generate PPT viewer HTML for snapshots
         base_data['ppt_viewer_initial_ppt'] = self._build_viewer_html(
             'initial', initial_snapshot
         )
@@ -105,40 +119,32 @@ class ChatAdapter(BaseTaskAdapter):
             'final', final_snapshot
         )
 
-        # Session history as readable text
         session_history = self.metadata.get('initial_session_history', [])
-        base_data['session_history'] = self._format_session_history(session_history)
+        base_data['session_history'] = self._format_session_history_text(session_history)
+        base_data['session_history_html'] = self._format_session_history_html(session_history)
 
         return base_data
 
     def _build_viewer_html(self, field_id: str, snapshot: Dict) -> str:
-        """Build HTML string with embedded iframe + postMessage for PPT viewer."""
+        """Build HTML string with embedded iframe for PPT viewer."""
         if not snapshot:
             return '<div style="padding:20px;color:#999;">无快照数据</div>'
 
-        snapshot_json = json.dumps(snapshot, ensure_ascii=False)
+        import base64
+        snapshot_b64 = base64.b64encode(
+            json.dumps(snapshot, ensure_ascii=False).encode('utf-8')
+        ).decode('ascii')
 
         return (
-            f'<div style="position:relative;width:100%;height:450px;border-radius:8px;overflow:hidden;">'
-            f'<iframe id="ppt-{field_id}" src="/static/pptist/viewer.html" '
+            f'<div style="position:relative;width:100%;aspect-ratio:16/9;border-radius:8px;overflow:hidden;">'
+            f'<iframe src="/static/pptist/viewer.html#snapshot={snapshot_b64}" '
             f'style="width:100%;height:100%;border:none;"></iframe>'
-            f'<script>'
-            f'(function(){{'
-            f'var data={snapshot_json};'
-            f'var iframe=document.getElementById("ppt-{field_id}");'
-            f'window.addEventListener("message",function(e){{'
-            f'if(e.data&&e.data.type==="viewer-ready"&&e.source===iframe.contentWindow){{'
-            f'iframe.contentWindow.postMessage({{type:"load-snapshot",snapshot:data}},"*");'
-            f'}}'
-            f'}});'
-            f'}})();'
-            f'</script>'
             f'</div>'
         )
 
     @staticmethod
-    def _format_session_history(history: list) -> str:
-        """Format session history as readable text."""
+    def _format_session_history_text(history: list) -> str:
+        """Format session history as plain text fallback."""
         if not history:
             return ''
         lines = []
@@ -155,6 +161,87 @@ class ChatAdapter(BaseTaskAdapter):
                 content = str(content)
             lines.append(f'[{role}] {content[:500]}')
         return '\n\n'.join(lines)
+
+    @staticmethod
+    def _escape_html(text: str) -> str:
+        """Escape HTML special characters."""
+        import html
+        return html.escape(str(text))
+
+    @classmethod
+    def _format_session_history_html(cls, history: list) -> str:
+        """Format session history as styled HTML with chat bubbles."""
+        if not history:
+            return '<div style="color:#999;">无会话历史</div>'
+
+        bubbles = []
+        for msg in history:
+            if not isinstance(msg, dict):
+                continue
+            role = msg.get('role', 'unknown')
+            content = msg.get('content') or ''
+
+            if isinstance(content, list):
+                content = ' '.join(
+                    p.get('text', '') if isinstance(p, dict) else str(p) for p in content
+                )
+            if not isinstance(content, str):
+                content = str(content)
+
+            if role == 'tool':
+                bubbles.append(cls._render_tool_bubble(content))
+            elif role == 'system':
+                bubbles.append(
+                    f'<div class="chat-msg chat-system">{cls._escape_html(content[:300])}</div>'
+                )
+            elif role == 'user':
+                escaped = cls._escape_html(content).replace('\n', '<br/>')
+                bubbles.append(
+                    f'<div class="chat-msg chat-user">'
+                    f'<div class="chat-role">用户</div>'
+                    f'{escaped}</div>'
+                )
+            else:
+                # assistant or other roles
+                escaped = cls._escape_html(content).replace('\n', '<br/>')
+                bubbles.append(
+                    f'<div class="chat-msg chat-assistant">'
+                    f'<div class="chat-role">助手</div>'
+                    f'{escaped}</div>'
+                )
+
+        return f'{cls._CHAT_STYLES}<div class="chat-history">{"".join(bubbles)}</div>'
+
+    @classmethod
+    def _render_tool_bubble(cls, content: str) -> str:
+        """Render tool message as a collapsible summary."""
+        summary = '工具调用结果'
+        detail_content = content
+
+        # Try to parse JSON and extract a meaningful summary
+        try:
+            data = json.loads(content)
+            if isinstance(data, dict):
+                success = data.get('success')
+                name = data.get('name') or data.get('tool') or ''
+                if success is True:
+                    summary = f'&#10003; {name} 执行成功' if name else '&#10003; 工具执行成功'
+                elif success is False:
+                    error = data.get('error') or data.get('message') or '未知错误'
+                    summary = f'&#10007; {name} 执行失败' if name else f'&#10007; 工具执行失败'
+                elif name:
+                    summary = f'&#9881; {name}'
+                detail_content = json.dumps(data, indent=2, ensure_ascii=False)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        escaped_detail = cls._escape_html(detail_content)
+        return (
+            f'<details class="chat-tool">'
+            f'<summary>{summary}</summary>'
+            f'<pre>{escaped_detail}</pre>'
+            f'</details>'
+        )
 
     def _extract_input(self) -> str:
         """Extract user message."""

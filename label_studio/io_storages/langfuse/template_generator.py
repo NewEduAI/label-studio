@@ -174,6 +174,8 @@ def _build_section(section_title, fields):
 
         if field_type == 'iframe':
             inner = f'<HyperText name="{field_name}" value="$ppt_viewer_{field_name}"/>'
+        elif field_type == 'hypertext':
+            inner = f'<HyperText name="{field_name}" value="${field_source}"/>'
         else:
             inner = f'<Text name="{field_name}" value="${field_source}"/>'
 
@@ -224,7 +226,7 @@ def generate_label_config(score_configs, task_type=None, queue_name=None, queue_
         if input_fields:
             sections.append(_build_section('INPUT', input_fields))
             for f in input_fields:
-                if f.get('type', 'text') == 'text':
+                if f.get('type', 'text') in ('text', 'hypertext'):
                     first_text_name = _xml_escape(f['name'])
                     break
 
@@ -233,7 +235,7 @@ def generate_label_config(score_configs, task_type=None, queue_name=None, queue_
             sections.append(_build_section('OUTPUT', output_fields))
             if first_text_name == _DISPLAY_NAME:
                 for f in output_fields:
-                    if f.get('type', 'text') == 'text':
+                    if f.get('type', 'text') in ('text', 'hypertext'):
                         first_text_name = _xml_escape(f['name'])
                         break
     else:
